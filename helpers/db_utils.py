@@ -151,14 +151,17 @@ def get_grant_by_id(grant_id):
 def get_parent_categories(conn):
     query = "SELECT id, name FROM qb_parent_categories ORDER BY name"
     return fetch_all(conn, query)
+
 # Add Parent Category
 def add_parent_category(name, desc):
     query = "INSERT INTO qb_parent_categories (name, description) VALUES (?, ?)"
     execute_query(query, (name, desc))
+
 # UPDATE PARENT
 def update_parent_category(parent_id, new_name):
     query = "UPDATE qb_parent_categories SET name = ? WHERE id = ?"
     execute_query(query, (new_name, parent_id))
+
 # DELETE PARENT
 def delete_parent_category(parent_id):
     # Only allow deletion if no subcategories exist
@@ -177,14 +180,17 @@ def get_subcategories(conn, parent_id=None):
     else:
         query = "SELECT id, name FROM qb_categories ORDER BY name"
         return fetch_all(conn, query)
+    
 # ADD SUB
 def add_subcategory(name, parent_id):
     query = "INSERT INTO qb_categories (name, parent_id) VALUES (?, ?)"
     execute_query(query, (name, parent_id))
+
 # UPDATE SUB
 def update_subcategory(subcat_id, new_name):
     query = "UPDATE qb_categories SET name = ? WHERE id = ?"
     execute_query(query, (new_name, subcat_id))
+    
 # DELETE SUB
 def delete_subcategory(subcat_id):
     # Only allow deletion if no QB codes exist under it
