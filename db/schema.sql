@@ -16,30 +16,31 @@ CREATE TABLE IF NOT EXISTS grants (
     funder_id INTEGER,                   -- FK to funders(id)
     start_date DATE,
     end_date DATE,
-    status TEXT,                      -- e.g., "active", "closed"
+    total_award REAL,
+    status TEXT,                      -- e.g., "active", "closed", "Pending"
     notes TEXT,
     FOREIGN KEY (funder_id) REFERENCES funders(id)
 );
 
 -- Table: Grant Line Items
 CREATE TABLE IF NOT EXISTS grant_line_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,              -- e.g., LI001
-    grant_id TEXT,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,              
+    grant_id INTEGER,
     name TEXT NOT NULL,               -- e.g., "Salaries & Fringe"
     description TEXT,
-    FOREIGN KEY (grant_id) REFERENCES grants(id)
+    FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE
 );
 
 
 -- Table: Mapping QB codes to Grant-specific Line Items
 CREATE TABLE IF NOT EXISTS qb_to_grant_mapping (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    grant_id TEXT,
+    grant_id INTEGER,
     qb_code TEXT,
     grant_line_item_id INTEGER,
-    FOREIGN KEY (grant_id) REFERENCES grants(id),
+    FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
     FOREIGN KEY (qb_code) REFERENCES qb_accounts(code),
-    FOREIGN KEY (grant_line_item_id) REFERENCES grant_line_items(id)
+    FOREIGN KEY (grant_line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
 );
 
 
@@ -73,19 +74,39 @@ CREATE TABLE IF NOT EXISTS qb_accounts (
 -- Table: Monthly Expenses
 CREATE TABLE IF NOT EXISTS expenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    grant_id TEXT,
+    grant_id INTEGER,
     month TEXT,                       -- e.g., "2025-06"
     qb_code TEXT,
     amount REAL,
     notes TEXT,
     line_item_id INTEGER, -- FK to grant_line_items(id)
     date_submitted DATE, -- Date when the expense was submitted
-    FOREIGN KEY (grant_id) REFERENCES grants(id),
+    FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
     FOREIGN KEY (qb_code) REFERENCES qb_accounts(code),
-    FOREIGN KEY (line_item_id) REFERENCES grant_line_items(id)
+    FOREIGN KEY (line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
 
 );
 
 
 -- Future: Add tables for GrantYears, FTE allocations, and Team Buckets for reporting.
 -- Future: Metrics per Grant and Outcomes/Goals
+
+
+-- When joining grants to funders, line items, or filtering by grant
+CREATE INDEX idx_grants_funder_id ON grants(funder_id);
+
+-- When looking up line items by grant
+CREATE INDEX idx_lineitems_grant_id ON grant_line_items(grant_id);
+
+-- When mapping codes to grant items
+CREATE INDEX idx_mapping_grant ON qb_to_grant_mapping(grant_id);
+CREATE INDEX idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
+
+-- When filtering expenses by grant or month
+CREATE INDEX idx_expenses_grant_month ON expenses(grant_id, month);
+
+-- When looking up QB codes quickly
+CREATE INDEX idx_qb_accounts_code ON qb_accounts(code);
+
+CREATE INDEX idx_expenses_line_item ON expenses(line_item_id);
+
