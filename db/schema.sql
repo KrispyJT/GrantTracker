@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS qb_categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,              -- e.g., 1
     name TEXT NOT NULL,               -- e.g., "Salaries & Fringe"
     parent_id INTEGER,              -- FK to qb_parent_categories(id)
-    FOREIGN KEY (parent_id) REFERENCES qb_parent_categories(id)
+    FOREIGN KEY (parent_id) REFERENCES qb_parent_categories(id) ON DELETE CASCADE
 );
 
 -- Table: Leaf Level QB Accounts e.g. 8707 Professional Development
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS qb_accounts (
     code TEXT PRIMARY KEY,            -- e.g., "8705"
     name TEXT NOT NULL,                        -- e.g., "Workshops"
     category_id INTEGER NOT NULL,              -- e.g., "Conferences and Meetings"
-    FOREIGN KEY (category_id) REFERENCES qb_categories(id)
+    FOREIGN KEY (category_id) REFERENCES qb_categories(id) ON DELETE CASCADE
 );
 
 

@@ -24,7 +24,7 @@ with st.form("grant_form"):
     funder_type = st.selectbox("Funder Type", ["Private", "Federal", "State", "Other"])
     start_date = st.date_input("Start Date", value=date.today())
     end_date = st.date_input("End Date", value=date.today())
-    total_award = st.text_input("Award Amount").strip()
+    total_award = st.number_input("Award Amount", min_value=0.0, format="%.2f")
     status = st.selectbox("Status", ["Pending", "Active", "Closed"])
     notes = st.text_area("Additional Notes").strip()
 
@@ -35,7 +35,7 @@ if submitted:
         st.warning("⚠️ Please fill out required fields.")
     else:
         funder_id = add_funder_if_not_exists(funder_name, funder_type)
-        success = add_grant(grant_name, funder_id, start_date, end_date, status, notes)
+        success = add_grant(grant_name, funder_id, start_date, end_date, total_award, status, notes)
         if success:
             st.success(f"✅ Grant '{grant_name}' added!")
             st.rerun()
@@ -49,7 +49,7 @@ st.header("📋 Existing Grants")
 grants = get_all_grants()
 
 if grants:
-    df = pd.DataFrame(grants, columns=["ID", "Grant Name", "Funder", "Start", "End", "Status"])
+    df = pd.DataFrame(grants, columns=["ID", "Grant Name", "Funder", "Start", "End", "Total Award", "Status"])
     st.dataframe(df, use_container_width=True)
 
     st.subheader("✏️ Edit/Delete a Grant")
@@ -61,13 +61,14 @@ if grants:
         new_funder = st.text_input("Funder Name", value=row["Funder"]).strip()
         new_start = st.date_input("Start Date", value=pd.to_datetime(row["Start"]).date())
         new_end = st.date_input("End Date", value=pd.to_datetime(row["End"]).date())
+        new_award = st.number_input("Total Award", value=float(row["Total Award"] or 0), min_value=0.0, format="%.2f")
         new_status = st.selectbox("Status", ["Pending", "Active", "Closed"], index=["Pending", "Active", "Closed"].index(row["Status"]))
         new_notes = st.text_area("Additional Notes").strip()
 
         col1, col2 = st.columns(2)
         if col1.form_submit_button("Update Grant"):
             funder_id = add_funder_if_not_exists(new_funder, "Private")
-            update_grant(row["ID"], new_name, funder_id, new_start, new_end, new_status, new_notes)
+            update_grant(row["ID"], new_name, funder_id, new_start, new_end, new_award, new_status, new_notes)
             st.success("Grant updated.")
             st.rerun()
 

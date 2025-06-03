@@ -1,6 +1,7 @@
 # db_utils.py
 import sqlite3
 import pandas as pd
+from datetime import date
 import os
 
 # --- Constants ---
@@ -8,8 +9,9 @@ DB_PATH = os.path.join(os.path.dirname(__file__), "..", "grant_tracker.db")
 
 # --- Helper: Connect to DB ---
 def get_connection():
+    conn = sqlite3.connect(DB_PATH)
     conn.execute("PRAGMA foreign_keys = ON;")
-    return sqlite3.connect(DB_PATH)
+    return conn
 
 # --- Query Helpers ---
 def fetch_all(query, params=()):
@@ -54,7 +56,7 @@ def insert_and_return_id(query, params):
 # --- Grant Logic ---
 def get_all_grants():
     query = """
-        SELECT g.id, g.name, f.name AS funder, g.start_date, g.end_date, g.status, g.notes
+        SELECT g.id, g.name, f.name AS funder, g.start_date, g.end_date, g.status, g.total_award, g.notes
         FROM grants g
         LEFT JOIN funders f ON g.funder_id = f.id
         ORDER BY g.start_date DESC
@@ -81,7 +83,7 @@ def add_funder_if_missing(funder_name, funder_type):
 def add_grant(grant_name, funder_id, start_date, end_date, total_award, status, notes):
     query = """
         INSERT INTO grants (name, funder_id, start_date, end_date, total_award, status, notes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """
     with get_connection() as conn:
         conn.execute(query, (
@@ -89,14 +91,15 @@ def add_grant(grant_name, funder_id, start_date, end_date, total_award, status, 
             funder_id,
             start_date.isoformat() if isinstance(start_date, date) else start_date,
             end_date.isoformat() if isinstance(end_date, date) else end_date,
+            total_award,
             status.strip(),
             notes.strip() if notes else None
         ))
 
-def update_grant(grant_id, grant_name, funder_id, start_date, end_date, status, notes):
+def update_grant(grant_id, grant_name, funder_id, start_date, end_date, total_award, status, notes):
     query = """
         UPDATE grants
-        SET name = ?, funder_id = ?, start_date = ?, end_date = ?, status = ?, notes = ?
+        SET name = ?, funder_id = ?, start_date = ?, end_date = ?, total_award = ?, status = ?, notes = ?
         WHERE id = ?
     """
     with get_connection() as conn:
@@ -105,10 +108,12 @@ def update_grant(grant_id, grant_name, funder_id, start_date, end_date, status, 
             funder_id,
             start_date.isoformat() if isinstance(start_date, date) else start_date,
             end_date.isoformat() if isinstance(end_date, date) else end_date,
+            total_award,
             status.strip(),
             notes.strip() if notes else None,
             grant_id
         ))
+
 
 def delete_grant(grant_id):
     with get_connection() as conn:
@@ -120,7 +125,7 @@ def get_all_funders():
 
 def get_grant_by_id(grant_id):
     query = """
-        SELECT g.id, g.name, f.name AS funder_name, f.type AS funder_type, g.start_date, g.end_date, g.status, g.notes
+        SELECT g.id, g.name, f.name AS funder_name, f.type AS funder_type, g.start_date, g.end_date, g.total_award, g.status, g.notes
         FROM grants g
         LEFT JOIN funders f ON g.funder_id = f.id
         WHERE g.id = ?
@@ -211,9 +216,9 @@ def add_qb_code(code, name, category_id):
         return False
 
 # ADD QB CODE
-def insert_qb_code(conn, code, name, category_id):
-    query = "INSERT INTO qb_accounts (code, name, category_id) VALUES (?, ?, ?)"
-    execute_query(conn, query, (code, name, category_id))
+# def insert_qb_code(conn, code, name, category_id):
+#     query = "INSERT INTO qb_accounts (code, name, category_id) VALUES (?, ?, ?)"
+#     execute_query(conn, query, (code, name, category_id))
 # UPDATE QB CODE
 def update_qb_code(conn, code, new_name):
     query = "UPDATE qb_accounts SET name = ? WHERE code = ?"
