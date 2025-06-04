@@ -1,144 +1,117 @@
+# pages/grants.py
 import streamlit as st
-import pandas as pd
 from datetime import date
-from helpers.db_utils import (
-    get_all_grants,
-    add_funder_if_missing,
-    get_funder_id,
-    add_grant,
-    update_grant,
-    delete_grant
+from helpers.db_utils import get_all_grants
+from helpers.grant_controller import (
+    handle_add_grant,
+    handle_update_grant,
+    handle_delete_grant,
 )
 
-st.set_page_config(page_title="Grants", page_icon="📈")
-st.title("🌟 Grant Mapping Tool")
+st.set_page_config(page_title="Grant Management", page_icon="📑")
+st.title("📑 Grant Management")
 
-# ----------------------------
-# Show session status messages
-# ----------------------------
-if st.session_state.get("grant_added"):
-    st.success("✅ Grant added.")
-    st.session_state["grant_added"] = False
-    st.rerun()
+st.markdown("Manage grants and related information below. Add new grants, edit existing ones, or delete obsolete entries.")
 
-if st.session_state.get("grant_updated"):
-    st.success("✅ Grant updated.")
-    st.session_state["grant_updated"] = False
-    st.rerun()
-
-if st.session_state.get("grant_deleted"):
-    st.warning("🗑️ Grant deleted.")
-    st.session_state["grant_deleted"] = False
-    st.rerun()
+# Fetch all grants and build dropdown dictionary
+grants = get_all_grants()
+grant_dict = {f"{name} ({funder})": grant_id for grant_id, name, funder, *_ in grants}
 
 # -------------------
-# Add New Grant
+# ➕ Add New Grant
 # -------------------
-with st.expander("➕ Add a New Grant", expanded=False):
-    with st.form("grant_form"):
-        grant_name = st.text_input("Grant Name").strip()
-        funder_name = st.text_input("Funder Name").strip()
-        funder_type = st.selectbox("Funder Type", ["Private", "Federal", "State", "Other"])
-        start_date = st.date_input("Start Date (MM/DD/YYYY)", value=date.today())
-        end_date = st.date_input("End Date (MM/DD/YYYY)", value=date.today())
-
-        try:
-            total_award = st.number_input(
-                "Award Amount",
-                value=None,
-                step=0.01,
-                format="%.2f",
-                placeholder="Enter award (e.g., 15000)"
-            )
-        except TypeError:
-            award_input = st.text_input("Award Amount (e.g., 15000)")
+st.markdown("### ➕ Add New Grant")
+with st.expander("Add a new grant entry"):
+    with st.form("add_grant_form"):
+        new_grant_name = st.text_input("Grant Name")
+        new_funder_name = st.text_input("Funder Name")
+        new_funder_type = st.selectbox("Funder Type", ["Government", "Foundation", "Corporate", "Other"])
+        col1, col2 = st.columns(2)
+        new_start_date = col1.date_input("Start Date", value=date.today())
+        new_end_date = col2.date_input("End Date")
+        new_total_award = st.number_input("Total Award ($)", step=1000.0, min_value=0.0)
+        new_status = st.selectbox("Status", ["Active", "Closed", "Pending"])
+        new_notes = st.text_area("Notes (Optional)")
+        if st.form_submit_button("Add Grant"):
             try:
-                total_award = float(award_input) if award_input else None
-            except ValueError:
-                total_award = None
-
-        status = st.selectbox("Status", ["Pending", "Active", "Closed"])
-        notes = st.text_area("Additional Notes").strip()
-
-        submitted = st.form_submit_button("Add Grant")
-
-    if submitted:
-        if not grant_name or not funder_name or total_award is None:
-            st.warning("⚠️ Please fill out all required fields correctly.")
-        else:
-            try:
-                add_funder_if_missing(funder_name, funder_type)
-                funder_id = get_funder_id(funder_name)
-                add_grant(grant_name, funder_id, start_date, end_date, total_award, status, notes)
-                st.session_state["grant_added"] = True
-                st.rerun()
-            except Exception as e:
-                if "UNIQUE constraint failed: grants.name" in str(e):
-                    st.error(f"❌ A grant named '{grant_name}' already exists. Please choose a unique name.")
-                else:
-                    st.error(f"❌ Failed to add grant: {e}")
-
-# -------------------
-# Edit/Delete a Grant
-# -------------------
-with st.expander("✏️ Edit or Delete a Grant", expanded=False):
-    grants = get_all_grants()
-    if grants:
-        df = pd.DataFrame(grants, columns=["ID", "Grant Name", "Funder", "Start", "End", "Status", "Total Award", "Notes"])
-        selected = st.selectbox("Select a Grant to Edit/Delete", options=df["Grant Name"].tolist())
-        row = df[df["Grant Name"] == selected].iloc[0]
-
-        with st.form("edit_grant"):
-            new_name = st.text_input("Grant Name", value=row["Grant Name"]).strip()
-            new_funder = st.text_input("Funder Name", value=row["Funder"]).strip()
-            new_funder_type = st.selectbox("Funder Type", ["Private", "Federal", "State", "Other"])
-            new_start = st.date_input("Start Date (MM/DD/YYYY)", value=pd.to_datetime(row["Start"]).date())
-            new_end = st.date_input("End Date (MM/DD/YYYY)", value=pd.to_datetime(row["End"]).date())
-
-            try:
-                new_award = st.number_input(
-                    "Total Award",
-                    value=float(row["Total Award"]) if row["Total Award"] else None,
-                    step=0.01,
-                    format="%.2f"
+                handle_add_grant(
+                    new_grant_name,
+                    new_funder_name,
+                    new_funder_type,
+                    new_start_date,
+                    new_end_date,
+                    new_total_award,
+                    new_status,
+                    new_notes,
                 )
-            except TypeError:
-                new_award_input = st.text_input("Total Award (e.g., 15000)", value=str(row["Total Award"] or ""))
-                try:
-                    new_award = float(new_award_input) if new_award_input else None
-                except ValueError:
-                    new_award = None
+                st.success("✅ Grant added successfully.")
+                st.rerun()
+            except ValueError as ve:
+                st.error(f"⚠️ {ve}")
 
-            new_status = st.selectbox("Status", ["Pending", "Active", "Closed"],
-                                      index=["Pending", "Active", "Closed"].index(row["Status"]))
-            new_notes = st.text_area("Additional Notes", value=row["Notes"] or "").strip()
+# -------------------
+# ✏️ Edit/Delete Grant
+# -------------------
+st.markdown("### ✏️ Edit or Delete Grant")
+if grants:
+    selected_label = st.selectbox("Select Grant to Edit/Delete", list(grant_dict.keys()))
+    selected_grant_id = grant_dict[selected_label]
+    selected_row = next((row for row in grants if row[0] == selected_grant_id), None)
 
-            col1, col2 = st.columns(2)
-            if col1.form_submit_button("Update Grant"):
-                if new_award is None:
-                    st.warning("❗ Please enter a valid award amount.")
-                else:
-                    add_funder_if_missing(new_funder, new_funder_type)
-                    funder_id = get_funder_id(new_funder)
-                    update_grant(row["ID"], new_name, funder_id, new_start, new_end, new_award, new_status, new_notes)
-                    st.session_state["grant_updated"] = True
+    if selected_row:
+        _, existing_name, existing_funder, existing_start, existing_end, existing_status, existing_award, existing_notes = selected_row
+
+        with st.expander("Edit/Delete Selected Grant"):
+            with st.form("edit_grant_form"):
+                edited_grant_name = st.text_input("Grant Name", value=existing_name)
+                edited_funder_name = st.text_input("Funder Name", value=existing_funder)
+                edited_funder_type = st.selectbox("Funder Type", ["Government", "Foundation", "Corporate", "Other"])
+                col1, col2 = st.columns(2)
+                edited_start_date = col1.date_input("Start Date", value=date.fromisoformat(existing_start))
+                edited_end_date = col2.date_input("End Date", value=date.fromisoformat(existing_end))
+                edited_total_award = st.number_input("Total Award ($)", value=existing_award or 0.0, step=1000.0)
+                edited_status = st.selectbox("Status", ["Active", "Closed", "Pending"], index=["Active", "Closed", "Pending"].index(existing_status))
+                edited_notes = st.text_area("Notes", value=existing_notes or "")
+                col1, col2 = st.columns(2)
+
+                if col1.form_submit_button("Update Grant"):
+                    handle_update_grant(
+                        selected_grant_id,
+                        edited_grant_name,
+                        edited_funder_name,
+                        edited_funder_type,
+                        edited_start_date,
+                        edited_end_date,
+                        edited_total_award,
+                        edited_status,
+                        edited_notes,
+                    )
+                    st.success("✅ Grant updated successfully.")
                     st.rerun()
 
-            if col2.form_submit_button("❌ Delete Grant"):
-                delete_grant(row["ID"])
-                st.session_state["grant_deleted"] = True
-                st.rerun()
-    else:
-        st.info("No grants available to edit or delete.")
+                if col2.form_submit_button("❌ Delete Grant"):
+                    handle_delete_grant(selected_grant_id)
+                    st.warning("⚠️ Grant deleted.")
+                    st.rerun()
+else:
+    st.info("No grants available yet. Please add one above.")
 
 # -------------------
-# Display All Grants
+# 📋 Display All Grants
 # -------------------
-st.header("📋 All Grants")
-grants = get_all_grants()
+st.markdown("### 📋 All Grants")
 if grants:
-    df = pd.DataFrame(grants, columns=["ID", "Grant Name", "Funder", "Start", "End", "Status", "Total Award", "Notes"])
-    df["Total Award"] = df["Total Award"].apply(lambda x: f"${x:,.2f}" if pd.notnull(x) else "")
-    st.dataframe(df.drop(columns=["ID"]), use_container_width=True)
+    st.dataframe(
+        {
+            "Name": [g[1] for g in grants],
+            "Funder": [g[2] for g in grants],
+            "Start Date": [g[3] for g in grants],
+            "End Date": [g[4] for g in grants],
+            "Status": [g[5] for g in grants],
+            "Total Award": [g[6] for g in grants],
+            "Notes": [g[7] for g in grants],
+        },
+        use_container_width=True,
+    )
 else:
-    st.info("No grants found.")
+    st.info("No grants to show.")
