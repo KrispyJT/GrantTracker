@@ -142,7 +142,7 @@ st.subheader("📂 Filter Accounts")
 parent_filter = st.selectbox("Filter by Parent Category", ["All"] + list(parent_dict.keys()))
 sub_filter = []
 if parent_filter != "All":
-    sub_filter = [name for name, _ in get_subcategories(parent_dict[parent_filter])]
+    sub_filter = [name for _, name in get_subcategories(parent_dict[parent_filter])]
 sub_selected = st.selectbox("Filter by Subcategory", ["All"] + sub_filter if sub_filter else ["All"])
 
 filtered_df = get_filtered_qb_codes(parent_filter, sub_selected)
