@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import date
 import os
+from helpers.date_helpers import (generate_month_range)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "grant_tracker.db")
 
@@ -32,7 +33,7 @@ def insert_and_return_id(query, params):
         conn.commit()
         return cursor.lastrowid
 
-# --- Grant Logic ---
+# --- Grant Logic & Table ---
 def get_all_grants():
     query = """
         SELECT g.id, g.name, f.name AS funder, g.start_date, g.end_date, g.status, g.total_award, g.notes
@@ -104,19 +105,26 @@ def get_grant_by_id(grant_id):
     """
     return fetch_one(query, (grant_id,))
 
-# --- Line Item Logic ---
+# -- End of Grant Table Calls
+
+# --- Grant Line Item Logic Using the  ---
 def get_line_items_by_grant(grant_id):
     query = """
-        SELECT id, name, description
+        SELECT id, name, description, allocated_amount
         FROM grant_line_items
         WHERE grant_id = ?
         ORDER BY name
     """
     return fetch_all(query, (grant_id,))
 
-def add_line_item(grant_id, name, description):
-    query = "INSERT INTO grant_line_items (grant_id, name, description) VALUES (?, ?, ?)"
-    execute_query(query, (grant_id, name.strip(), description.strip()))
+def add_line_item(grant_id, name, description, allocated_amount=0.0):
+    query = "INSERT INTO grant_line_items (grant_id, name, description, allocated_amount) VALUES (?, ?, ?, ?)"
+    execute_query(query, (grant_id, name.strip(), description.strip(), allocated_amount))
+
+## JUST ADDED TEST
+def update_line_item_allocated(item_id, new_allocated_amount):
+    query = "UPDATE grant_line_items SET allocated_amount = ? WHERE id = ?"
+    execute_query(query, (new_allocated_amount, item_id))
 
 def delete_line_item(item_id):
     query = "DELETE FROM grant_line_items WHERE id = ?"
@@ -228,3 +236,25 @@ def add_qb_mapping(grant_id, qb_code, line_item_id):
 def delete_qb_mapping(mapping_id):
     query = "DELETE FROM qb_to_grant_mapping WHERE id = ?"
     execute_query(query, (mapping_id,))
+
+
+# OPTIONAL FOR FUTURE USE using ACTUAL AND ANTICIPATED 
+def get_actual_expenses_for_grant(grant_id):
+    query = """
+        SELECT month, qb_code, amount, notes, date_submitted
+        FROM actual_expenses
+        WHERE grant_id = ?
+        ORDER BY month
+    """
+    return fetch_all(query, (grant_id,))
+
+
+def get_anticipated_expenses_for_grant(grant_id):
+    query = """
+        SELECT month, expected_amount, line_item_id
+        FROM anticipated_expenses
+        WHERE grant_id = ?
+        ORDER BY month
+    """
+    return fetch_all(query, (grant_id,))
+

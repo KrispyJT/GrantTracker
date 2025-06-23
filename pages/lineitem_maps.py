@@ -30,7 +30,7 @@ st.subheader("📋 Grant Line Items")
 line_items = get_line_items_by_grant(selected_grant_id)
 
 if line_items:
-    df_line_items = pd.DataFrame(line_items, columns=["ID", "Name", "Description"])
+    df_line_items = pd.DataFrame(line_items, columns=["ID", "Name", "Description", "Allocated Amount"])
     st.dataframe(df_line_items.drop(columns=["ID"]), use_container_width=True)
 
     with st.expander("➖ Delete Line Item"):

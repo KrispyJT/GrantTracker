@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS grant_line_items (
     grant_id INTEGER,
     name TEXT NOT NULL,               -- e.g., "Salaries & Fringe"
     description TEXT,
+    allocated_amount, REAL DEFAULT 0.0,
     FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE
 );
 
@@ -71,8 +72,8 @@ CREATE TABLE IF NOT EXISTS qb_accounts (
 );
 
 
--- Table: Monthly Expenses
-CREATE TABLE IF NOT EXISTS expenses (
+-- Table: Monthly Actual Expenses
+CREATE TABLE IF NOT EXISTS actual_expenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     grant_id INTEGER,
     month TEXT,                       -- e.g., "2025-06"
@@ -86,6 +87,19 @@ CREATE TABLE IF NOT EXISTS expenses (
     FOREIGN KEY (line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
 
 );
+
+
+-- Table: Monthly Anticipated Expenses
+CREATE TABLE IF NOT EXISTS anticipated_expenses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    grant_id INTEGER,
+    line_item_id INTEGER,
+    month TEXT,
+    expected_amount REAL,
+    FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
+    FOREIGN KEY (line_item_id) REFERENCES grant_line_item_id(id) ON DELETE CASCADE
+); 
+
 
 
 -- Future: Add tables for GrantYears, FTE allocations, and Team Buckets for reporting.
@@ -103,7 +117,9 @@ CREATE INDEX idx_mapping_grant ON qb_to_grant_mapping(grant_id);
 CREATE INDEX idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
 
 -- When filtering expenses by grant or month
-CREATE INDEX idx_expenses_grant_month ON expenses(grant_id, month);
+CREATE INDEX idx_expenses_grant_month ON actual_expenses(grant_id, month);
+
+CREATE INDEX idx_expenses_grant_month ON anticipated_expenses(grant_id, month);
 
 -- When looking up QB codes quickly
 CREATE INDEX idx_qb_accounts_code ON qb_accounts(code);
