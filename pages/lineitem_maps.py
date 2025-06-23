@@ -102,14 +102,36 @@ with st.form("map_qb_form"):
 # ----------------------------------
 # 4. View & Delete Mappings
 # ----------------------------------
+
+
 st.divider()
 st.header("📎 Existing Mappings")
 
 mappings = get_mappings_for_grant(selected_grant_id)
-
 if mappings:
     df_map = pd.DataFrame(mappings, columns=["ID", "QB Code", "QB Name", "Line Item"])
 
+    # 🧮 Mapping Tracker
+    mapped_ids = df_map["Line Item"].unique().tolist()
+    total_items = len(line_items)
+    mapped_count = len(mapped_ids)
+    unmapped_count = total_items - mapped_count
+
+    if total_items == 0:
+        st.warning("⚠️ No line items created for this grant.")
+    elif mapped_count == total_items:
+        st.success(f"✅ All {total_items} line items have been mapped.")
+    else:
+        st.info(f"🔄 {mapped_count} of {total_items} line items mapped. {unmapped_count} remaining.")
+
+        # 🚫 Show which ones are still unmapped
+        unmapped_names = [li[1] for li in line_items if li[1] not in mapped_ids]
+        if unmapped_names:
+            st.warning("🚫 The following line items are not yet mapped:")
+            for name in unmapped_names:
+                st.markdown(f"- {name}")
+
+    # 📦 Group mappings by line item
     grouped = df_map.groupby("Line Item")
     for li, group in grouped:
         with st.expander(f"🧾 {li}", expanded=False):
@@ -120,8 +142,43 @@ if mappings:
                     st.success("Mapping removed.")
                     st.rerun()
 else:
-    st.info("ℹ️ No QB mappings yet.")
+    st.info("ℹ️ No QuickBooks codes have been mapped to any line items yet. Use the form above to begin.")
 
+
+
+# st.divider()
+# st.header("📎 Existing Mappings")
+
+# mappings = get_mappings_for_grant(selected_grant_id)
+
+# if mappings:
+#     df_map = pd.DataFrame(mappings, columns=["ID", "QB Code", "QB Name", "Line Item"])
+
+#     # 🧮 Mapping Tracker
+#     mapped_ids = df_map["Line Item"].unique().tolist()
+#     total_items = len(line_items)
+#     mapped_count = len(mapped_ids)
+#     unmapped_count = total_items - mapped_count
+
+#     if total_items == 0:
+#         st.warning("⚠️ No line items created for this grant.")
+#     elif mapped_count == total_items:
+#         st.success(f"✅ All {total_items} line items have been mapped.")
+#     else:
+#         st.info(f"🔄 {mapped_count} of {total_items} line items mapped. {unmapped_count} remaining.")
+
+#     # 📦 Group mappings by line item
+#     grouped = df_map.groupby("Line Item")
+#     for li, group in grouped:
+#         with st.expander(f"🧾 {li}", expanded=False):
+#             for _, row in group.iterrows():
+#                 st.markdown(f"• `{row['QB Code']}` – {row['QB Name']}")
+#                 if st.button("🗑️ Remove", key=f"rm_{row['ID']}"):
+#                     delete_qb_mapping(row["ID"])
+#                     st.success("Mapping removed.")
+#                     st.rerun()
+# else:
+#     st.info("ℹ️ No QB mappings yet.")
 
 
 
