@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS qb_accounts (
 -- Table: Monthly Actual Expenses
 CREATE TABLE IF NOT EXISTS actual_expenses (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    grant_id INTEGER,
+    grant_id INTEGER NOT NULL,
     month TEXT,                       -- e.g., "2025-06"
     qb_code TEXT,
     amount REAL,
@@ -117,7 +117,7 @@ CREATE INDEX idx_mapping_grant ON qb_to_grant_mapping(grant_id);
 CREATE INDEX idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
 
 -- When filtering expenses by grant or month
-CREATE INDEX IF NOT EXISTS idx_expenses_grant_month ON actual_expenses(grant_id, expense_month);
+CREATE INDEX IF NOT EXISTS idx_expenses_grant_month ON actual_expenses(grant_id, month);
 
 
 -- CREATE INDEX idx_expenses_grant_month ON anticipated_expenses(grant_id, month);
@@ -125,5 +125,5 @@ CREATE INDEX IF NOT EXISTS idx_expenses_grant_month ON actual_expenses(grant_id,
 -- When looking up QB codes quickly
 CREATE INDEX idx_qb_accounts_code ON qb_accounts(code);
 
-CREATE INDEX idx_expenses_line_item ON expenses(line_item_id);
+CREATE INDEX idx_expenses_line_item ON actual_expenses(line_item_id);
 
