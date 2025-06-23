@@ -64,6 +64,8 @@ if selected_parent != "No Categories Yet":
 # SUBCATEGORY
 # -------------------
 st.markdown("### 📂 Subcategory")
+selected_sub = "No Subcategories Yet"
+
 if selected_parent != "No Categories Yet":
     subcats = get_subcategories(parent_dict[selected_parent])
     cat_dict = {name: cid for cid, name in subcats}
