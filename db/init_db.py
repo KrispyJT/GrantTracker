@@ -13,4 +13,6 @@ try:
     print("✅ Database initialized successfully.")
 except Exception as e:
     print(f"❌ Initialization failed: {e}")
+    print("🗂 Using DB path:", DB_PATH)
+
 

@@ -117,9 +117,10 @@ CREATE INDEX idx_mapping_grant ON qb_to_grant_mapping(grant_id);
 CREATE INDEX idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
 
 -- When filtering expenses by grant or month
-CREATE INDEX idx_expenses_grant_month ON actual_expenses(grant_id, month);
+CREATE INDEX IF NOT EXISTS idx_expenses_grant_month ON actual_expenses(grant_id, expense_month);
 
-CREATE INDEX idx_expenses_grant_month ON anticipated_expenses(grant_id, month);
+
+-- CREATE INDEX idx_expenses_grant_month ON anticipated_expenses(grant_id, month);
 
 -- When looking up QB codes quickly
 CREATE INDEX idx_qb_accounts_code ON qb_accounts(code);
