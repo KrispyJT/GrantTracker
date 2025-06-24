@@ -26,3 +26,20 @@ def validate_date_range(start_date, end_date):
     if isinstance(end_date, str): end_date = datetime.strptime(end_date, "%Y-%m-%d")
     if end_date < start_date:
         raise ValueError("End date must be after start date.")
+
+
+def distribute_amount_evenly(allocated_amount: float, months: list[str]) -> dict[str, float]:
+    """Evenly distribute the allocated amount across the months without exceeding it."""
+    monthly_base = round(allocated_amount / len(months), 2)
+    distribution = {month: monthly_base for month in months}
+
+    # Calculate how much was actually distributed
+    total_distributed = round(monthly_base * len(months), 2)
+    remainder = round(allocated_amount - total_distributed, 2)
+
+    # Add the remainder to the final month to match total
+    if remainder != 0:
+        last_month = months[-1]
+        distribution[last_month] = round(distribution[last_month] + remainder, 2)
+
+    return distribution

@@ -3,7 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import date
 import os
-from helpers.date_helpers import (generate_month_range)
+from helpers.date_helpers import (generate_month_range, distribute_amount_evenly)
 
 DB_PATH = os.path.join(os.path.dirname(__file__), "..", "grant_tracker.db")
 
@@ -268,18 +268,39 @@ def delete_qb_mapping(mapping_id):
 
 
 
-def initialize_anticipated_expenses(grant_id, line_item_id, start_date, end_date):
+# def initialize_anticipated_expenses(grant_id, line_item_id, start_date, end_date, allocated_amount=0.0):
+#     """
+#     Inserts one anticipated expense row per month for a line item, for the grant duration.
+#     Will not insert duplicates thanks to INSERT OR IGNORE.
+#     """
+#     months = generate_month_range(start_date, end_date)
+#     per_month_amount = round(allocated_amount / len(months), 2) if allocated_amount else 0.0
+#     for month in months:
+#         query = """
+#             INSERT OR IGNORE INTO anticipated_expenses (grant_id, line_item_id, month, expected_amount)
+#             VALUES (?, ?, ?, ?)
+#         """
+#         execute_query(query, (grant_id, line_item_id, month, per_month_amount))
+
+def initialize_anticipated_expenses(grant_id, line_item_id, start_date, end_date, allocated_amount=0.0):
     """
     Inserts one anticipated expense row per month for a line item, for the grant duration.
-    Will not insert duplicates thanks to INSERT OR IGNORE.
+    Uses even distribution logic. Will not insert duplicates thanks to INSERT OR IGNORE.
     """
     months = generate_month_range(start_date, end_date)
-    for month in months:
+
+    # Use helper to evenly distribute amount
+    distribution = distribute_amount_evenly(allocated_amount, months)
+
+    for month, expected_amount in distribution.items():
         query = """
             INSERT OR IGNORE INTO anticipated_expenses (grant_id, line_item_id, month, expected_amount)
-            VALUES (?, ?, ?, 0.0)
+            VALUES (?, ?, ?, ?)
         """
-        execute_query(query, (grant_id, line_item_id, month))
+        execute_query(query, (grant_id, line_item_id, month, expected_amount))
+
+
+
 
 def update_anticipated_expense(grant_id, line_item_id, month, expected_amount):
     query = """
@@ -288,6 +309,11 @@ def update_anticipated_expense(grant_id, line_item_id, month, expected_amount):
         WHERE grant_id = ? AND line_item_id = ? AND month = ?
     """
     execute_query(query, (expected_amount, grant_id, line_item_id, month))
+
+
+def delete_anticipated_expenses_for_grant(grant_id):
+    query = 'DELETE FROM anticipated_expenses WHERE grant_id = ?'
+    execute_query(query, (grant_id,))
 
 
 # OPTIONAL FOR FUTURE USE using ACTUAL AND ANTICIPATED 
