@@ -158,7 +158,7 @@ def get_parent_categories():
     return fetch_all(query)
 
 def add_parent_category(name, desc):
-    query = "INSERT INTO qb_parent_categories (name, description) VALUES (?, ?)"
+    query = "INSERT OR IGNORE INTO qb_parent_categories (name, description) VALUES (?, ?)"
     execute_query(query, (name, desc))
 
 def update_parent_category(parent_id, new_name):
@@ -181,7 +181,7 @@ def get_subcategories(parent_id=None):
     return fetch_all(query)
 
 def add_subcategory(name, parent_id):
-    query = "INSERT INTO qb_categories (name, parent_id) VALUES (?, ?)"
+    query = "INSERT OR IGNORE INTO qb_categories (name, parent_id) VALUES (?, ?)"
     execute_query(query, (name, parent_id))
 
 def update_subcategory(subcat_id, new_name):
@@ -204,12 +204,13 @@ def get_qb_codes(category_id=None):
     return fetch_all(query)
 
 def add_qb_code(code, name, category_id):
-    try:
-        query = "INSERT INTO qb_accounts (code, name, category_id) VALUES (?, ?, ?)"
-        execute_query(query, (code, name, category_id))
-        return True
-    except sqlite3.IntegrityError:
-        return False
+        try:
+            query = "INSERT OR IGNORE INTO qb_accounts (code, name, category_id) VALUES (?, ?, ?)"
+            execute_query(query, (code, name, category_id))
+            return True
+        
+        except sqlite3.IntegrityError:
+            return False
 
 def update_qb_code(code, new_name):
     query = "UPDATE qb_accounts SET name = ? WHERE code = ?"
@@ -336,3 +337,21 @@ def get_anticipated_expenses_for_grant(grant_id):
     """
     return fetch_all(query, (grant_id,))
 
+def is_allocation_exceeding_total(grant_id):
+    query = """
+        SELECT g.total_award, IFNULL(SUM(li.allocated_amount), 0)
+        FROM grants g
+        LEFT JOIN grant_line_items li ON g.id = li.grant_id
+        WHERE g.id = ?
+        GROUP BY g.id
+    """
+    result = fetch_one(query, (grant_id,))
+    if result:
+        total_award, total_allocated = result
+        return total_allocated > total_award, total_allocated, total_award
+    return False, 0, 0
+
+
+# exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
+# if exceeds:
+#     st.warning(f"⚠️ Total allocated (${allocated}) exceeds total award (${total}).")

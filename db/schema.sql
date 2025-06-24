@@ -22,16 +22,38 @@ CREATE TABLE IF NOT EXISTS grants (
     FOREIGN KEY (funder_id) REFERENCES funders(id)
 );
 
+-- -- Table: Grant Line Items
+-- CREATE TABLE IF NOT EXISTS grant_line_items (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,              
+--     grant_id INTEGER,
+--     name TEXT NOT NULL,               -- e.g., "Salaries & Fringe"
+--     description TEXT,
+--     allocated_amount, REAL DEFAULT 0.0,
+--     FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE
+-- );
+
 -- Table: Grant Line Items
 CREATE TABLE IF NOT EXISTS grant_line_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,              
     grant_id INTEGER,
     name TEXT NOT NULL,               -- e.g., "Salaries & Fringe"
     description TEXT,
-    allocated_amount, REAL DEFAULT 0.0,
-    FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE
+    allocated_amount REAL DEFAULT 0.0,
+    FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
+    UNIQUE(grant_id, name)  -- Ensure each grant has unique line item names
 );
 
+
+-- -- Table: Mapping QB codes to Grant-specific Line Items
+-- CREATE TABLE IF NOT EXISTS qb_to_grant_mapping (
+--     id INTEGER PRIMARY KEY AUTOINCREMENT,
+--     grant_id INTEGER,
+--     qb_code TEXT,
+--     grant_line_item_id INTEGER,
+--     FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
+--     FOREIGN KEY (qb_code) REFERENCES qb_accounts(code),
+--     FOREIGN KEY (grant_line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
+-- );
 
 -- Table: Mapping QB codes to Grant-specific Line Items
 CREATE TABLE IF NOT EXISTS qb_to_grant_mapping (
@@ -41,10 +63,9 @@ CREATE TABLE IF NOT EXISTS qb_to_grant_mapping (
     grant_line_item_id INTEGER,
     FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
     FOREIGN KEY (qb_code) REFERENCES qb_accounts(code),
-    FOREIGN KEY (grant_line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
+    FOREIGN KEY (grant_line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE,
+    UNIQUE(grant_id, qb_code, grant_line_item_id)  -- Prevent duplicate mappings
 );
-
-
 
 
 -- Table: Parent Categories e.g., 'Expenses', 'Income
@@ -107,23 +128,32 @@ CREATE TABLE IF NOT EXISTS anticipated_expenses (
 
 
 -- When joining grants to funders, line items, or filtering by grant
-CREATE INDEX idx_grants_funder_id ON grants(funder_id);
+-- CREATE INDEX idx_grants_funder_id ON grants(funder_id);
 
--- When looking up line items by grant
-CREATE INDEX idx_lineitems_grant_id ON grant_line_items(grant_id);
+-- -- When looking up line items by grant
+-- CREATE INDEX idx_lineitems_grant_id ON grant_line_items(grant_id);
 
--- When mapping codes to grant items
-CREATE INDEX idx_mapping_grant ON qb_to_grant_mapping(grant_id);
-CREATE INDEX idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
+-- -- When mapping codes to grant items
+-- CREATE INDEX idx_mapping_grant ON qb_to_grant_mapping(grant_id);
+-- CREATE INDEX idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
 
--- When filtering expenses by grant or month
+-- -- When filtering expenses by grant or month
+-- CREATE INDEX IF NOT EXISTS idx_expenses_grant_month ON actual_expenses(grant_id, month);
+
+
+-- -- CREATE INDEX idx_expenses_grant_month ON anticipated_expenses(grant_id, month);
+
+-- -- When looking up QB codes quickly
+-- CREATE INDEX idx_qb_accounts_code ON qb_accounts(code);
+
+-- CREATE INDEX idx_expenses_line_item ON actual_expenses(line_item_id);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_grants_funder_id ON grants(funder_id);
+CREATE INDEX IF NOT EXISTS idx_lineitems_grant_id ON grant_line_items(grant_id);
+CREATE INDEX IF NOT EXISTS idx_mapping_grant ON qb_to_grant_mapping(grant_id);
+CREATE INDEX IF NOT EXISTS idx_mapping_line_item ON qb_to_grant_mapping(grant_line_item_id);
 CREATE INDEX IF NOT EXISTS idx_expenses_grant_month ON actual_expenses(grant_id, month);
-
-
--- CREATE INDEX idx_expenses_grant_month ON anticipated_expenses(grant_id, month);
-
--- When looking up QB codes quickly
-CREATE INDEX idx_qb_accounts_code ON qb_accounts(code);
-
-CREATE INDEX idx_expenses_line_item ON actual_expenses(line_item_id);
-
+CREATE INDEX IF NOT EXISTS idx_qb_accounts_code ON qb_accounts(code);
+CREATE INDEX IF NOT EXISTS idx_expenses_line_item ON actual_expenses(line_item_id);
+CREATE INDEX IF NOT EXISTS idx_anticipated_lookup ON anticipated_expenses(grant_id, line_item_id, month);
