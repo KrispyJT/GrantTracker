@@ -33,6 +33,8 @@ def insert_and_return_id(query, params):
         conn.commit()
         return cursor.lastrowid
 
+
+
 # --- Grant Logic & Table ---
 def get_all_grants():
     query = """
@@ -107,6 +109,9 @@ def get_grant_by_id(grant_id):
 
 # -- End of Grant Table Calls
 
+
+
+
 # --- Grant Line Item Logic Using the  ---
 def get_line_items_by_grant(grant_id):
     query = """
@@ -135,8 +140,6 @@ def update_line_item(line_item_id, name, description, allocated_amount):
         line_item_id
     ))
 
-
-
 ## JUST ADDED TEST
 def update_line_item_allocated(item_id, new_allocated_amount):
     query = "UPDATE grant_line_items SET allocated_amount = ? WHERE id = ?"
@@ -145,6 +148,9 @@ def update_line_item_allocated(item_id, new_allocated_amount):
 def delete_line_item(item_id):
     query = "DELETE FROM grant_line_items WHERE id = ?"
     execute_query(query, (item_id,))
+
+
+
 
 # --- QuickBooks Logic ---
 def get_parent_categories():
@@ -233,6 +239,10 @@ def get_filtered_qb_codes(parent_filter="All", sub_filter="All"):
     base_query += " ORDER BY p.name, c.name, a.code"
     return pd.read_sql_query(base_query, get_connection(), params=params)
 
+
+
+
+
 # --- Mapping Logic ---
 def get_mappings_for_grant(grant_id):
     query = """
@@ -252,6 +262,32 @@ def add_qb_mapping(grant_id, qb_code, line_item_id):
 def delete_qb_mapping(mapping_id):
     query = "DELETE FROM qb_to_grant_mapping WHERE id = ?"
     execute_query(query, (mapping_id,))
+
+
+
+
+
+
+def initialize_anticipated_expenses(grant_id, line_item_id, start_date, end_date):
+    """
+    Inserts one anticipated expense row per month for a line item, for the grant duration.
+    Will not insert duplicates thanks to INSERT OR IGNORE.
+    """
+    months = generate_month_range(start_date, end_date)
+    for month in months:
+        query = """
+            INSERT OR IGNORE INTO anticipated_expenses (grant_id, line_item_id, month, expected_amount)
+            VALUES (?, ?, ?, 0.0)
+        """
+        execute_query(query, (grant_id, line_item_id, month))
+
+def update_anticipated_expense(grant_id, line_item_id, month, expected_amount):
+    query = """
+        UPDATE anticipated_expenses
+        SET expected_amount = ?
+        WHERE grant_id = ? AND line_item_id = ? AND month = ?
+    """
+    execute_query(query, (expected_amount, grant_id, line_item_id, month))
 
 
 # OPTIONAL FOR FUTURE USE using ACTUAL AND ANTICIPATED 

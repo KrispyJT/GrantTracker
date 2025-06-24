@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS anticipated_expenses (
     month TEXT,
     expected_amount REAL,
     FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
-    FOREIGN KEY (line_item_id) REFERENCES grant_line_item_id(id) ON DELETE CASCADE
+    FOREIGN KEY (line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
 ); 
 
 
