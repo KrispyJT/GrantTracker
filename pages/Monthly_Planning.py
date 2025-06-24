@@ -9,7 +9,7 @@ from helpers.db_utils import (
 )
 from helpers.date_helpers import generate_month_range
 
-st.set_page_config(page_title="📆 Monthly Planning", page_icon="📆")
+st.set_page_config(page_title="Monthly Planning", page_icon="📆")
 st.title("📆 Monthly Expense Planning")
 
 st.markdown("""
@@ -37,8 +37,6 @@ if selected_grant_id is None:
 
 # Safe to continue
 selected_grant = next(g for g in grants if g[0] == selected_grant_id)
-
-
 
 
 # Get line items for the selected grant
@@ -71,6 +69,8 @@ li_map = {li[0]: li[1] for li in line_items}  # ID to Name
 anticipated_df["Line Item"] = anticipated_df["Line Item ID"].map(li_map)
 
 # Pivot for display
+months = generate_month_range(selected_grant[3], selected_grant[4])
+
 pivot_df = anticipated_df.pivot_table(index="Line Item", columns="Month", values="Expected Amount", fill_value=0.0)
 pivot_df = pivot_df[[m for m in months if m in pivot_df.columns]]  # Ensure proper order
 
