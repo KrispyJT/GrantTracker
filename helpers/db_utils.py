@@ -121,6 +121,22 @@ def add_line_item(grant_id, name, description, allocated_amount=0.0):
     query = "INSERT INTO grant_line_items (grant_id, name, description, allocated_amount) VALUES (?, ?, ?, ?)"
     execute_query(query, (grant_id, name.strip(), description.strip(), allocated_amount))
 
+## JUST ADDED
+def update_line_item(line_item_id, name, description, allocated_amount):
+    query = """
+        UPDATE grant_line_items
+        SET name = ?, description = ?, allocated_amount = ?
+        WHERE id = ?
+    """
+    execute_query(query, (
+        name.strip(),
+        description.strip() if description else None,
+        allocated_amount,
+        line_item_id
+    ))
+
+
+
 ## JUST ADDED TEST
 def update_line_item_allocated(item_id, new_allocated_amount):
     query = "UPDATE grant_line_items SET allocated_amount = ? WHERE id = ?"
