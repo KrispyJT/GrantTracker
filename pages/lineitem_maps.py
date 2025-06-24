@@ -33,11 +33,16 @@ You can:
 # 1. Select Grant
 # ----------------------------------
 grants = get_all_grants()
+
+if not grants:
+    st.warning("⚠️ No grants found. Please add a grant first.")
+    st.stop()
+
 grant_options = {f"{g[1]} ({g[2]})": g[0] for g in grants}
 selected_label = st.selectbox("🎯 Select a Grant", list(grant_options.keys()))
-selected_grant_id = grant_options[selected_label]
+selected_grant_id = grant_options.get(selected_label)
 
-# Optional Grant Info Display
+# Grant Info Display
 selected_grant = next(g for g in grants if g[0] == selected_grant_id)
 with st.expander("📄 Grant Overview", expanded=False):
     st.markdown(f"**Grant Name:** {selected_grant[1]}")

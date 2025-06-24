@@ -21,13 +21,23 @@ You can review allocations, edit expected monthly amounts, and ensure your budge
 # 🎯 Select a Grant
 # ----------------------------------
 grants = get_all_grants()
+
+if not grants:
+    st.warning("⚠️ No grants found. Please add a grant first.")
+    st.stop()
+
 grant_options = {f"{g[1]} ({g[2]})": g[0] for g in grants}
-selected_label = st.selectbox("Select a Grant", list(grant_options.keys()))
-selected_grant_id = grant_options[selected_label]
+selected_label = st.selectbox("📅 Select a Grant", list(grant_options.keys()))
+selected_grant_id = grant_options.get(selected_label)
+
+# Optional: Protect against empty selection even if grants exist
+if selected_grant_id is None:
+    st.warning("⚠️ Please select a valid grant.")
+    st.stop()
+
+# Safe to continue
 selected_grant = next(g for g in grants if g[0] == selected_grant_id)
 
-start_date, end_date = selected_grant[3], selected_grant[4]
-months = generate_month_range(start_date, end_date)
 
 
 
