@@ -23,6 +23,7 @@ st.markdown("- **Grants** – Create and organize grant records")
 st.markdown("- **Funders** – (Coming soon) Manage organizations funding your grants")
 st.markdown("- **QuickBooks Codes** – Set up internal QB account codes")
 st.markdown("- **Line Item Mapping** – Link QB codes to your grant’s line items")
+st.markdown("- Monthly Planning")
 st.markdown("- 🌎 [First Steps Kent](https://www.firststepskent.org/) – Program information")
 
 # --- Grant Overview Table ---
@@ -44,4 +45,4 @@ st.page_link('pages/grants.py', label="Grants", icon="➕")
 st.page_link('pages/funders.py', label="Funders", disabled=True)
 st.page_link('pages/quickbooks.py', label="QB Codes")
 st.page_link('pages/lineitem_maps.py', label="Line Item Mapping", icon="🧩")
-st.page_link('pages/Monthy_Planning.py', label='Month Planning')
+st.page_link('pages/monthy_planning.py', label='Month Planning')
