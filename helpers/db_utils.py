@@ -256,9 +256,35 @@ def get_mappings_for_grant(grant_id):
     """
     return fetch_all(query, (grant_id,))
 
+# def add_qb_mapping(grant_id, qb_code, line_item_id):
+#     query = "INSERT INTO qb_to_grant_mapping (grant_id, qb_code, grant_line_item_id) VALUES (?, ?, ?)"
+#     execute_query(query, (grant_id, qb_code, line_item_id))
+
 def add_qb_mapping(grant_id, qb_code, line_item_id):
-    query = "INSERT INTO qb_to_grant_mapping (grant_id, qb_code, grant_line_item_id) VALUES (?, ?, ?)"
-    execute_query(query, (grant_id, qb_code, line_item_id))
+    # Check if mapping already exists
+    check_query = """
+        SELECT 1 FROM qb_to_grant_mapping
+        WHERE grant_id = ? AND qb_code = ? AND grant_line_item_id = ?
+        LIMIT 1
+    """
+    existing = fetch_one(check_query, (grant_id, qb_code, line_item_id))
+    
+    if existing:
+        return False  # Duplicate found
+
+    # If not, insert
+    insert_query = """
+        INSERT INTO qb_to_grant_mapping (grant_id, qb_code, grant_line_item_id)
+        VALUES (?, ?, ?)
+    """
+    execute_query(insert_query, (grant_id, qb_code, line_item_id))
+    return True
+
+
+
+
+
+
 
 def delete_qb_mapping(mapping_id):
     query = "DELETE FROM qb_to_grant_mapping WHERE id = ?"
@@ -355,3 +381,9 @@ def is_allocation_exceeding_total(grant_id):
 # exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
 # if exceeds:
 #     st.warning(f"⚠️ Total allocated (${allocated}) exceeds total award (${total}).")
+
+
+def get_total_allocated_for_grant(grant_id):
+    query = "SELECT SUM(allocated_amount) FROM grant_line_items WHERE grant_id = ?"
+    result = fetch_one(query, (grant_id,))
+    return result[0] if result and result[0] else 0.0

@@ -13,7 +13,7 @@ from helpers.db_utils import (
 )
 
 st.set_page_config(page_title="Line Item Mapping", page_icon="🧩")
-st.title("🧩 Mapping Codes to Grant Line Items")
+st.title("🧩 Map QB Codes to Line Items")
 
 
 st.markdown("""
@@ -156,12 +156,18 @@ lineitem_labels = {li[1]: li[0] for li in line_items}
 with st.form("map_qb_code_form"):
     li_name = st.selectbox("Grant Line Item", options=list(lineitem_labels.keys()))
     qb_choice = st.selectbox("QB Code", [f"{r['code']} – {r['name']}" for _, r in qb_data.iterrows()])
+    
     if st.form_submit_button("Map Code"):
         li_id = lineitem_labels[li_name]
         code = qb_choice.split("–")[0].strip()
-        add_qb_mapping(selected_grant_id, code, li_id)
-        st.success(f"✅ Mapped QB Code {code} to '{li_name}'")
-        st.rerun()
+        success = add_qb_mapping(selected_grant_id, code, li_id)
+
+        
+        if success:
+            st.success(f"✅ Mapped QB Code {code} to '{li_name}'")
+            st.rerun()
+        else:
+            st.warning(f"Mapping already exists between '{code}' and '{li_name}'")
 
 
 # ----------------------------------
@@ -185,7 +191,10 @@ if mappings:
         st.success(f"✅ All {total_items} line items are mapped.")
     else:
         st.info(f"🔄 {len(mapped_items)} of {total_items} line items mapped. {len(unmapped_items)} remaining.")
-        st.warning("🚫 Unmapped items: " + ", ".join(unmapped_items))
+        # st.warning("**Unmapped items**: " + ", ".join(unmapped_items))
+        st.warning("The following line items are not yet mapped:")
+        for name in unmapped_items:
+            st.markdown(f"- {name}")
 
     # Show grouped mappings
     for li_name, group in grouped:
