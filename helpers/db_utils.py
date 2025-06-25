@@ -482,3 +482,24 @@ def get_actual_expense_totals(grant_id):
         GROUP BY line_item_id
     """
     return fetch_all(query, (grant_id,))
+
+
+def get_grant_summary_data(grant_id):
+    # Fetch line items with allocations
+    line_items = get_line_item_allocations(grant_id)
+    actuals = dict(get_actual_expense_totals(grant_id))
+
+    data = []
+    for item_id, name, allocated in line_items:
+        spent = actuals.get(item_id, 0.0)
+        percent_spent = round((spent / allocated) * 100, 1) if allocated else 0.0
+        remaining = allocated - spent
+        data.append({
+            "Line Item": name,
+            "Allocated": allocated,
+            "Spent": spent,
+            "% Spent": f"{percent_spent}%",
+            "Remaining": remaining
+        })
+
+    return pd.DataFrame(data)

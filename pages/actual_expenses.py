@@ -110,7 +110,7 @@ edited_df = grid_response["data"]
 if st.button("📂 Submit Actual Expenses"):
     for _, row in edited_df.iterrows():
         amount = float(row["Amount Spent"])
-        notes = row["Notes"].strip()
+        notes = row["Notes"]
         line_item_id = row["line_item_id"]
         qb_code = row["QB Code"]
 
