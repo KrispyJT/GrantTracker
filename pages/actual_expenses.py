@@ -114,7 +114,7 @@ if st.button("📂 Submit Actual Expenses"):
         line_item_id = row["line_item_id"]
         qb_code = row["QB Code"]
 
-        if amount == 0 and not notes:
+        if amount != 0 or notes:
         # Always attempt to save (will update or insert depending on existing state)
             save_actual_expense(
                 grant_id=selected_grant_id,
@@ -130,7 +130,7 @@ if st.button("📂 Submit Actual Expenses"):
 
 
 
-
+# if amount == 0 and not notes:
 # if st.button("📂 Submit Actual Expenses"):
 #     for _, row in edited_df.iterrows():
 #         amount = float(row["Amount Spent"])
