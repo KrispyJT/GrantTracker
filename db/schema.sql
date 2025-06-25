@@ -106,6 +106,8 @@ CREATE TABLE IF NOT EXISTS actual_expenses (
     FOREIGN KEY (grant_id) REFERENCES grants(id) ON DELETE CASCADE,
     FOREIGN KEY (qb_code) REFERENCES qb_accounts(code),
     FOREIGN KEY (line_item_id) REFERENCES grant_line_items(id) ON DELETE CASCADE
+    -- UNIQUE (grant_id, month, qb_code, line_item_id)
+
 
 );
 

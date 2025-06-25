@@ -283,9 +283,6 @@ def add_qb_mapping(grant_id, qb_code, line_item_id):
 
 
 
-
-
-
 def delete_qb_mapping(mapping_id):
     query = "DELETE FROM qb_to_grant_mapping WHERE id = ?"
     execute_query(query, (mapping_id,))
@@ -327,8 +324,6 @@ def initialize_anticipated_expenses(grant_id, line_item_id, start_date, end_date
         execute_query(query, (grant_id, line_item_id, month, expected_amount))
 
 
-
-
 def update_anticipated_expense(grant_id, line_item_id, month, expected_amount):
     query = """
         UPDATE anticipated_expenses
@@ -344,14 +339,95 @@ def delete_anticipated_expenses_for_grant(grant_id):
 
 
 # OPTIONAL FOR FUTURE USE using ACTUAL AND ANTICIPATED 
-def get_actual_expenses_for_grant(grant_id):
+# def get_actual_expenses_for_grant(grant_id):
+#     query = """
+#         SELECT month, qb_code, amount, notes, date_submitted
+#         FROM actual_expenses
+#         WHERE grant_id = ?
+#         ORDER BY month
+#     """
+#     return fetch_all(query, (grant_id,))
+
+def get_actual_expenses_for_grant(grant_id, month):
     query = """
-        SELECT month, qb_code, amount, notes, date_submitted
+        SELECT month, qb_code, amount, notes, date_submitted, line_item_id
         FROM actual_expenses
-        WHERE grant_id = ?
-        ORDER BY month
+        WHERE grant_id = ? AND month = ?
     """
-    return fetch_all(query, (grant_id,))
+    return fetch_all(query, (grant_id, month))
+
+
+# def save_actual_expense(grant_id, month, qb_code, line_item_name, amount, notes, date_submitted):
+#     line_item_id = fetch_one("SELECT id FROM grant_line_items WHERE name = ? AND grant_id = ?", (line_item_name, grant_id))
+#     if not line_item_id:
+#         raise ValueError("Line item not found.")
+
+#     query = """
+#         INSERT INTO actual_expenses (grant_id, month, qb_code, amount, notes, line_item_id, date_submitted)
+#         VALUES (?, ?, ?, ?, ?, ?, ?)
+#     """
+#     execute_query(query, (grant_id, month, qb_code, amount, notes, line_item_id[0], date_submitted))
+
+
+def save_actual_expense(grant_id, month, qb_code, line_item_id, amount, notes, date_submitted):
+    # Check for an existing record
+    existing = fetch_one("""
+        SELECT id FROM actual_expenses
+        WHERE grant_id = ? AND month = ? AND qb_code = ? AND line_item_id = ?
+    """, (grant_id, month, qb_code, line_item_id))
+
+    if existing:
+        # Update
+        update_query = """
+            UPDATE actual_expenses
+            SET amount = ?, notes = ?, date_submitted = ?
+            WHERE id = ?
+        """
+        execute_query(update_query, (amount, notes, date_submitted, existing[0]))
+    else:
+        # Insert
+        insert_query = """
+            INSERT INTO actual_expenses (grant_id, month, qb_code, amount, notes, line_item_id, date_submitted)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        execute_query(insert_query, (grant_id, month, qb_code, amount, notes, line_item_id, date_submitted))
+
+
+
+
+# def save_actual_expense(grant_id, month, qb_code, line_item_name, amount, notes, date_submitted):
+#     # Get line_item_id
+#     line_item_id = fetch_one(
+#         "SELECT id FROM grant_line_items WHERE name = ? AND grant_id = ?",
+#         (line_item_name, grant_id)
+#     )
+#     if not line_item_id:
+#         raise ValueError("Line item not found.")
+#     line_item_id = line_item_id[0]
+
+#     # Check for an existing record for same grant, month, qb_code, and line_item_id
+#     existing = fetch_one("""
+#         SELECT id FROM actual_expenses
+#         WHERE grant_id = ? AND month = ? AND qb_code = ? AND line_item_id = ?
+#     """, (grant_id, month, qb_code, line_item_id))
+
+#     if existing:
+#         # Update existing
+#         update_query = """
+#             UPDATE actual_expenses
+#             SET amount = ?, notes = ?, date_submitted = ?
+#             WHERE id = ?
+#         """
+#         execute_query(update_query, (amount, notes, date_submitted, existing[0]))
+#     else:
+#         # Insert new
+#         insert_query = """
+#             INSERT INTO actual_expenses (grant_id, month, qb_code, amount, notes, line_item_id, date_submitted)
+#             VALUES (?, ?, ?, ?, ?, ?, ?)
+#         """
+#         execute_query(insert_query, (grant_id, month, qb_code, amount, notes, line_item_id, date_submitted))
+
+
 
 
 def get_anticipated_expenses_for_grant(grant_id):
@@ -387,3 +463,5 @@ def get_total_allocated_for_grant(grant_id):
     query = "SELECT SUM(allocated_amount) FROM grant_line_items WHERE grant_id = ?"
     result = fetch_one(query, (grant_id,))
     return result[0] if result and result[0] else 0.0
+
+
