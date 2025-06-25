@@ -33,7 +33,7 @@ if selected:
     if exceeds:
         st.warning(f"⚠️ Allocated (${allocated:,.2f}) exceeds total award (${total:,.2f})")
     else:
-        st.success(f"✅ Allocated: ${allocated:,.2f} of ${total:,.2f}")
+        st.success(f"✅ Allocated: ${allocated:,.2f}  of  ${total:,.2f}")
 
     # -- Summary Table
     st.markdown("### 📊 Line Item Spending Summary")
