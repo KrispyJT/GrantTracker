@@ -110,19 +110,43 @@ edited_df = grid_response["data"]
 if st.button("📂 Submit Actual Expenses"):
     for _, row in edited_df.iterrows():
         amount = float(row["Amount Spent"])
-        if amount > 0:
+        notes = row["Notes"].strip()
+        line_item_id = row["line_item_id"]
+        qb_code = row["QB Code"]
+
+        if amount == 0 and not notes:
+        # Always attempt to save (will update or insert depending on existing state)
             save_actual_expense(
                 grant_id=selected_grant_id,
                 month=selected_month,
-                qb_code=row["QB Code"],
-                line_item_id=row["line_item_id"],  # Now available directly
+                qb_code=qb_code,
+                line_item_id=line_item_id,
                 amount=amount,
-                notes=row["Notes"],
+                notes=notes,
                 date_submitted=datetime.today().date()
             )
-
     st.success("✅ Expenses saved.")
     st.rerun()
+
+
+
+
+# if st.button("📂 Submit Actual Expenses"):
+#     for _, row in edited_df.iterrows():
+#         amount = float(row["Amount Spent"])
+#         if amount > 0:
+#             save_actual_expense(
+#                 grant_id=selected_grant_id,
+#                 month=selected_month,
+#                 qb_code=row["QB Code"],
+#                 line_item_id=row["line_item_id"],  # Now available directly
+#                 amount=amount,
+#                 notes=row["Notes"],
+#                 date_submitted=datetime.today().date()
+#             )
+
+#     st.success("✅ Expenses saved.")
+#     st.rerun()
 
 
 
