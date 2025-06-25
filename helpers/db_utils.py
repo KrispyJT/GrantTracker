@@ -465,3 +465,20 @@ def get_total_allocated_for_grant(grant_id):
     return result[0] if result and result[0] else 0.0
 
 
+# In helpers/db_utils.py
+def get_line_item_allocations(grant_id):
+    query = """
+        SELECT id, name, allocated_amount
+        FROM grant_line_items
+        WHERE grant_id = ?
+    """
+    return fetch_all(query, (grant_id,))
+
+def get_actual_expense_totals(grant_id):
+    query = """
+        SELECT line_item_id, SUM(amount) as total_spent
+        FROM actual_expenses
+        WHERE grant_id = ?
+        GROUP BY line_item_id
+    """
+    return fetch_all(query, (grant_id,))
