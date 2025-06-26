@@ -1,37 +1,59 @@
-# --- db_utils.py (Refactored) ---
-import sqlite3
+
+
+
+# --- db_utils.py (Supabase version)
+from sqlalchemy import create_engine, text
 import pandas as pd
+import streamlit as st
 from datetime import date
-import os
-from helpers.date_helpers import (generate_month_range, distribute_amount_evenly)
+from helpers.date_helpers import generate_month_range, distribute_amount_evenly
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "..", "grant_tracker.db")
+# Connect using secrets
+engine = create_engine(st.secrets["database"]["url"])
 
-# --- DB Connection ---
-def get_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
 
-# --- Shared DB Ops ---
-def fetch_all(query, params=()):
-    with get_connection() as conn:
-        return conn.execute(query, params).fetchall()
+def fetch_all(query, params=None):
+    with engine.connect() as conn:
+        result = conn.execute(text(query), params or {})
+        return [dict(row._mapping) for row in result]
 
-def fetch_one(query, params=()):
-    with get_connection() as conn:
-        return conn.execute(query, params).fetchone()
+def fetch_one(query, params=None):
+    with engine.connect() as conn:
+        result = conn.execute(text(query), params or {})
+        row = result.fetchone()
+        return dict(row._mapping) if row else None
 
-def execute_query(query, params=()):
-    with get_connection() as conn:
-        conn.execute(query, params)
-        conn.commit()
+def execute_query(query, params=None):
+    with engine.begin() as conn:
+        conn.execute(text(query), params or {})
 
-def insert_and_return_id(query, params):
-    with get_connection() as conn:
-        cursor = conn.execute(query, params)
-        conn.commit()
-        return cursor.lastrowid
+def insert_and_return_id(query, params=None):
+    with engine.begin() as conn:
+        result = conn.execute(text(query + " RETURNING id"), params or {})
+        return result.scalar_one()
+
+
+
+
+# # --- Shared DB Ops ---
+# def fetch_all(query, params=()):
+#     with get_connection() as conn:
+#         return conn.execute(query, params).fetchall()
+
+# def fetch_one(query, params=()):
+#     with get_connection() as conn:
+#         return conn.execute(query, params).fetchone()
+
+# def execute_query(query, params=()):
+#     with get_connection() as conn:
+#         conn.execute(query, params)
+#         conn.commit()
+
+# def insert_and_return_id(query, params):
+#     with get_connection() as conn:
+#         cursor = conn.execute(query, params)
+#         conn.commit()
+#         return cursor.lastrowid
 
 
 
