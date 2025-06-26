@@ -1,3 +1,6 @@
+
+############# ORGINAL SUPRABASE VERISON UTILS BELOW #####
+
 # --- db_utils.py (Supabase version)
 from sqlalchemy import create_engine, text
 import pandas as pd
@@ -10,14 +13,15 @@ engine = create_engine(st.secrets["database"]["url"])
 
 
 # -------------------------
-# Read Functions
+# 🔍 Read Functions
 # -------------------------
-
+# 1
 def fetch_all(query, params=None):
     with engine.connect() as conn:
         result = conn.execute(text(query), params or {})
         return [dict(row._mapping) for row in result]
 
+# 2
 def fetch_one(query, params=None):
     with engine.connect() as conn:
         result = conn.execute(text(query), params or {})
@@ -25,96 +29,102 @@ def fetch_one(query, params=None):
         return dict(row._mapping) if row else None
 
 # -------------------------
-# Write Functions
+# 💾 Write Functions
 # -------------------------
-
+# 3
 def execute_query(query, params=None):
     with engine.begin() as conn:
         conn.execute(text(query), params or {})
-# 
+# 4
 def insert_and_return_id(query, params=None):
     with engine.begin() as conn:
         result = conn.execute(text(query + " RETURNING id"), params or {})
         return result.scalar_one()
+    
 
 
-# -----------------
-# Helper Functions
-# ------------------
-
-# Add Logic 
 def insert_if_not_exists(table, fields, values, conflict_fields, case_insensitive_fields=None, normalize_case=True):
     """
-    Inserts a new record into the specified table if a matching row does not already exist.
+    Generic insert-if-not-exists function with optional case normalization.
 
     Args:
-        table (str): The name of the table to insert into.
-        fields (list[str]): List of column names to insert.
-        values (dict): Dictionary of values to insert, keyed by column name.
-        conflict_fields (list[str]): Fields used to check if the row already exists.
-        case_insensitive_fields (list[str], optional): Fields to compare in a case-insensitive way.
-        normalize_case (bool, optional): If True, strings are normalized (trimmed and title-cased). Default is True.
+        table (str): Table name.
+        fields (list[str]): Fields to insert.
+        values (dict): Field-value pairs.
+        conflict_fields (list[str]): Fields to check for duplicates.
+        case_insensitive_fields (list[str], optional): Fields for case-insensitive duplicate check.
+        normalize_case (bool): If True, title-cases string values before insertion.
 
     Returns:
-        bool: True if a new record was inserted, False if it already existed.
+        bool: True if inserted, False if duplicate.
     """
-    # normalize and sanitize input values
-    clean_values = {
-        k: normalize_string(v) if normalize_case else v
-        for k, v in values.items()
-    }
+    # Clean and optionally normalize string values
+    clean_values = {}
+    for k, v in values.items():
+        if isinstance(v, str):
+            val = v.strip()
+            clean_values[k] = val.title() if normalize_case else val
+        else:
+            clean_values[k] = v
 
-    # WHERE clause to check for duplicates
+    # Check for existing record (case-insensitive for specified fields)
     where_clauses = []
     params = {}
     for field in conflict_fields:
+        param_key = f"{field}"
         if case_insensitive_fields and field in case_insensitive_fields:
-            where_clauses.append(f"LOWER({field}) = LOWER(:{field})")
+            where_clauses.append(f"LOWER({field}) = LOWER(:{param_key})")
         else:
-            where_clauses.append(f"{field} = :{field}")
-        params[field] = clean_values[field]
+            where_clauses.append(f"{field} = :{param_key}")
+        params[param_key] = clean_values[field]
 
-    # Checks if record already exists
     check_query = f"SELECT 1 FROM {table} WHERE {' AND '.join(where_clauses)}"
     if fetch_one(check_query, params):
-        return False    # Skip insert if already present
+        return False
 
-    # build and execute INSERT statement
+    # Insert if not exists
     insert_fields = ", ".join(fields)
-    placeholders = ", ".join(f":{f}" for f in fields)
-    insert_query = f"INSERT INTO {table} ({insert_fields}) VALUES ({placeholders}) ON CONFLICT DO NOTHING"
-    execute_query(insert_query, clean_values)
-
-    return True # insert succeeded 
-
-
-# Update Helper Function
-def update_name_if_unique(table, id_column, id_value, name_column, new_name, normalize_case=True):
+    insert_placeholders = ", ".join(f":{f}" for f in fields)
+    insert_query = f"""
+        INSERT INTO {table} ({insert_fields})
+        VALUES ({insert_placeholders})
+        ON CONFLICT DO NOTHING
     """
-    Updates the name field of a record if the new name is unique across the table.
+    execute_query(insert_query, clean_values)
+    return True
+
+
+
+
+def update_name_if_unique(table, id_column, id_value, name_column, new_name):
+    """
+    Update the `name_column` of a row in `table` only if no other row (case-insensitive)
+    already uses the new name.
 
     Args:
-        table (str): The name of the table.
-        id_column (str): The name of the primary key column.
-        id_value (Any): The value of the ID for the record being updated.
-        name_column (str): The column to update (e.g., 'name').
-        new_name (str): The proposed new name value.
-        normalize_case (bool): If True, normalize the name string (strip + title case).
+        table (str): The table name
+        id_column (str): The column for the row's ID (e.g. 'id' or 'code')
+        id_value: The value of the current row's ID
+        name_column (str): The name column to update
+        new_name (str): The desired new name
 
     Returns:
-        bool: True if the update was successful, False if the name already exists in another record.
+        bool: True if updated successfully, False if name already exists
     """
-     
-    formatted_name = normalize_string(new_name) if normalize_case else new_name.strip()
+    clean_name = new_name.strip()
+    formatted_name = clean_name.title()
 
+    # Check for name conflict
     query_check = f"""
         SELECT 1 FROM {table}
         WHERE LOWER({name_column}) = LOWER(:name)
         AND {id_column} != :id_value
     """
-    if fetch_one(query_check, {"name": formatted_name, "id_value": id_value}):
+    existing = fetch_one(query_check, {"name": formatted_name, "id_value": id_value})
+    if existing:
         return False
 
+    # Perform the update
     query_update = f"""
         UPDATE {table}
         SET {name_column} = :name
@@ -125,44 +135,11 @@ def update_name_if_unique(table, id_column, id_value, name_column, new_name, nor
 
 
 
-def update_record(table, id_column, id_value, update_fields: dict, normalize=True):
-    """
-    Generic update function to modify fields of a record by ID
 
-    Args:
-        table (str): The name of the table to update
-        id_column (str): The primary key column name e.g. 'id'
-        id_value: The value of the row's ID to identify the record
-        update_fields (dict): Dictionary of {field_name: new_value} to update
-        normalize (bool): If True, normalize string fields (Strip + title case)
-    Returns:
-        None
-    """
-    # Prepare clean values
-    clean_values = {
-        key: normalize_string(value) if normalize and isinstance(value, str) else value
-        for key, value in update_fields.items()
-    }
-    clean_values[id_column] = id_value
-
-    # generate the SET clause
-    assignments = ", ".join([f"{key} = :{key}" for key in update_fields.keys()])
-    query = f"""
-        UPDATE {table}
-        SET {assignments}
-        WHERE {id_column} = :{id_column}
-    """
-    execute_query(query, clean_values)
-
-
-
-
-#########################
-### Other Misc functions
-########################
-
-
-
+# -------------------------
+# Grant Logic
+# -------------------------
+# 5
 def get_all_grants():
     query = """
         SELECT g.id, g.name, f.name AS funder, g.start_date, g.end_date,
@@ -173,12 +150,61 @@ def get_all_grants():
     """
     return fetch_all(query)
 
-
 # 6
 def grant_exists(grant_name):
     query = "SELECT 1 FROM grants WHERE LOWER(name) = LOWER(:name) LIMIT 1"
     return fetch_one(query, {"name": grant_name.strip()})
 
+
+
+# 9 
+def add_grant(grant_name, funder_id, start_date, end_date, total_award, status, notes):
+    query = """
+        INSERT INTO grants (name, funder_id, start_date, end_date, total_award, status, notes)
+        VALUES (:name, :funder_id, :start_date, :end_date, :total_award, :status, :notes)
+    """
+    params = {
+        "name": grant_name.strip(),
+        "funder_id": funder_id,
+        "start_date": start_date.isoformat() if isinstance(start_date, date) else start_date,
+        "end_date": end_date.isoformat() if isinstance(end_date, date) else end_date,
+        "total_award": total_award,
+        "status": status.strip(),
+        "notes": notes.strip() if notes else None
+    }
+    execute_query(query, params)
+
+
+# 10
+def update_grant(grant_id, grant_name, funder_id, start_date, end_date, total_award, status, notes):
+    query = """
+        UPDATE grants
+        SET name = :name,
+            funder_id = :funder_id,
+            start_date = :start_date,
+            end_date = :end_date,
+            total_award = :total_award,
+            status = :status,
+            notes = :notes
+        WHERE id = :grant_id
+    """
+    params = {
+        "name": grant_name.strip(),
+        "funder_id": funder_id,
+        "start_date": start_date.isoformat() if isinstance(start_date, date) else start_date,
+        "end_date": end_date.isoformat() if isinstance(end_date, date) else end_date,
+        "total_award": total_award,
+        "status": status.strip(),
+        "notes": notes.strip() if notes else None,
+        "grant_id": grant_id
+    }
+    execute_query(query, params)
+
+
+# 11
+def delete_grant(grant_id):
+    query = "DELETE FROM grants WHERE id = :grant_id"
+    execute_query(query, {"grant_id": grant_id})
 
 
 # 13
@@ -192,11 +218,29 @@ def get_grant_by_id(grant_id):
     """
     return fetch_one(query, {"grant_id": grant_id})
 
+
+
+
+# -------------------------
+# Funder Logic
+# -------------------------
 # 7
 def get_funder_id(funder_name):
     query = "SELECT id FROM funders WHERE LOWER(name) = LOWER(:name)"
     result = fetch_one(query, {"name": funder_name.strip()})
     return result["id"] if result else None
+
+
+# 8
+def add_funder_if_missing(funder_name, funder_type):
+    existing = fetch_one("SELECT id FROM funders WHERE LOWER(name) = LOWER(:name)", {"name": funder_name.strip()})
+    if not existing:
+        query = "INSERT INTO funders (name, type) VALUES (:name, :type)"
+        execute_query(query, {
+            "name": funder_name.strip(),
+            "type": funder_type.strip()
+        })
+
 
 # 12
 def get_all_funders():
@@ -204,6 +248,9 @@ def get_all_funders():
     return fetch_all(query)
 
 
+# -------------------------
+# Grant Line Item Logic
+# -------------------------
 # 14
 def get_line_items_by_grant(grant_id):
     query = """
@@ -214,76 +261,69 @@ def get_line_items_by_grant(grant_id):
     """
     return fetch_all(query, {"grant_id": grant_id})
 
+# 15
+def add_line_item(grant_id, name, description, allocated_amount=0.0):
+    query = """
+        INSERT INTO grant_line_items (grant_id, name, description, allocated_amount)
+        VALUES (:grant_id, :name, :description, :allocated_amount)
+    """
+    params = {
+        "grant_id": grant_id,
+        "name": name.strip(),
+        "description": description.strip(),
+        "allocated_amount": allocated_amount
+    }
+    execute_query(query, params)
+
+# 16
+def update_line_item(line_item_id, name, description, allocated_amount):
+    query = """
+        UPDATE grant_line_items
+        SET name = :name, description = :description, allocated_amount = :allocated_amount
+        WHERE id = :id
+    """
+    params = {
+        "name": name.strip(),
+        "description": description.strip() if description else None,
+        "allocated_amount": allocated_amount,
+        "id": line_item_id
+    }
+    execute_query(query, params)
+
+
+# 17
+def update_line_item_allocated(item_id, new_allocated_amount):
+    query = """
+        UPDATE grant_line_items
+        SET allocated_amount = :allocated_amount
+        WHERE id = :id
+    """
+    params = {
+        "allocated_amount": new_allocated_amount,
+        "id": item_id
+    }
+    execute_query(query, params)
+
+# 18
+def delete_line_item(item_id):
+    query = "DELETE FROM grant_line_items WHERE id = :id"
+    execute_query(query, {"id": item_id})
+
+
+
+# -------------------------
+# QuickBooks Logic
+# -------------------------
+
+# ---------------
+# Parent Logic
+# ---------------
 # 19
 def get_parent_categories():
     query = "SELECT id, name FROM qb_parent_categories ORDER BY name"
     return fetch_all(query)
 
-
-# 23
-def get_subcategories(parent_id=None):
-    if isinstance(parent_id, int):
-        query = "SELECT id, name FROM qb_categories WHERE parent_id = :parent_id ORDER BY name"
-        return fetch_all(query, {"parent_id": parent_id})
-    else:
-        query = "SELECT id, name FROM qb_categories ORDER BY name"
-        return fetch_all(query)
-
-# 27
-def get_qb_codes(category_id=None):
-    if category_id:
-        query = "SELECT code, name FROM qb_accounts WHERE category_id = :category_id ORDER BY code"
-        return fetch_all(query, {"category_id": category_id})
-    else:
-        query = "SELECT code, name FROM qb_accounts ORDER BY code"
-        return fetch_all(query)
-# --------------------------
-# Adding Logic
-# ------------------------
-# 1a. Grant Information
-def add_grant(grant_name, funder_id, start_date, end_date, total_award, status, notes):
-    return insert_if_not_exists(
-        table="grants",
-        fields=["name", "funder_id", "start_date", "end_date", "total_award", "status", "notes"],
-        values={
-            "name": grant_name,
-            "funder_id": funder_id,
-            "start_date": start_date.isoformat() if isinstance(start_date, date) else start_date,
-            "end_date": end_date.isoformat() if isinstance(end_date, date) else end_date,
-            "total_award": total_award,
-            "status": status,
-            "notes": notes if isinstance(notes, str) and notes.strip() else None
-        },
-        conflict_fields=["name"],
-        case_insensitive_fields=["name"]
-    )
-
-# 1b. Funder Information
-def add_funder_if_missing(funder_name, funder_type):
-    return insert_if_not_exists(
-        table="funders",
-        fields=["name", "type"],
-        values={"name": funder_name, "type": funder_type},
-        conflict_fields=["name"],
-        case_insensitive_fields=["name"]
-    )
-
-# 1c. Grant Line Item Information
-def add_line_item(grant_id, name, description, allocated_amount=0.0):
-    return insert_if_not_exists(
-        table="grant_line_items",
-        fields=["grant_id", "name", "description", "allocated_amount"],
-        values={
-            "grant_id": grant_id,
-            "name": name,
-            "description": description,
-            "allocated_amount": allocated_amount
-        },
-        conflict_fields=["grant_id", "name"],
-        case_insensitive_fields=["name"]
-    )
-
-# 1d. QuickBooks Parent Category Information
+# 20
 def add_parent_category(name, desc):
     return insert_if_not_exists(
         table="qb_parent_categories",
@@ -295,7 +335,83 @@ def add_parent_category(name, desc):
         conflict_fields=["name"],
         case_insensitive_fields=["name"]
     )
-# 1e. QuickBooks Subcategory Information
+
+
+# def add_parent_category(name, desc):
+#     existing = fetch_one("SELECT 1 FROM qb_parent_categories WHERE name = :name", {"name": name.strip()})
+#     if existing:
+#         return False  # already exists
+#     query = """
+#         INSERT INTO qb_parent_categories (name, description)
+#         VALUES (:name, :description)
+#         ON CONFLICT (name) DO NOTHING
+#     """
+#     cleaned_desc = desc.strip() if desc and isinstance(desc, str) else None
+#     execute_query(query, {"name": name.strip(), "description": cleaned_desc})
+#     return True
+
+
+
+
+# 21
+# def update_parent_category(parent_id, new_name):
+#     query = """
+#         UPDATE qb_parent_categories
+#         SET name = :name
+#         WHERE id = :id
+#     """
+#     execute_query(query, {"name": new_name.strip(), "id": parent_id})
+def update_parent_category(parent_id, new_name):
+    return update_name_if_unique("qb_parent_categories", "id", parent_id, "name", new_name)
+
+
+
+# 22
+def delete_parent_category(parent_id):
+    # Check for dependencies first
+    query_check = "SELECT 1 FROM qb_categories WHERE parent_id = :parent_id LIMIT 1"
+    if fetch_one(query_check, {"parent_id": parent_id}):
+        return False
+
+    # Proceed to delete
+    query_delete = "DELETE FROM qb_parent_categories WHERE id = :parent_id"
+    execute_query(query_delete, {"parent_id": parent_id})
+    return True
+
+# ----------------
+# Subcategory Logic
+# ----------------
+
+# 23
+def get_subcategories(parent_id=None):
+    if isinstance(parent_id, int):
+        query = "SELECT id, name FROM qb_categories WHERE parent_id = :parent_id ORDER BY name"
+        return fetch_all(query, {"parent_id": parent_id})
+    else:
+        query = "SELECT id, name FROM qb_categories ORDER BY name"
+        return fetch_all(query)
+
+# 24
+# def add_subcategory(name, parent_id):
+#     cleaned_name = name.strip()
+
+#     # case insensitive check against existing subcats under same parent cat
+#     check_query = """
+#         SELECT 1 FROM qb_categories
+#         WHERE LOWER(name) = LOWER(:name) AND parent_id = :parent_id
+#     """
+
+#     exists = fetch_one(check_query, {"name": cleaned_name, "parent_id": parent_id})
+#     if exists:
+#         return False # duplicate found
+
+#     insert_query = """
+#         INSERT INTO qb_categories (name, parent_id)
+#         VALUES (:name, :parent_id)
+#         ON CONFLICT DO NOTHING
+#     """
+#     execute_query(insert_query, {"name": name, "parent_id": parent_id})
+#     return True
 def add_subcategory(name, parent_id):
     return insert_if_not_exists(
         table="qb_categories",
@@ -305,8 +421,42 @@ def add_subcategory(name, parent_id):
         case_insensitive_fields=["name"]
     )
 
+# 25
+# def update_subcategory(subcat_id, new_name):
+#     query = "UPDATE qb_categories SET name = :new_name WHERE id = :subcat_id"
+#     execute_query(query, {"new_name": new_name.strip(), "subcat_id": subcat_id})
 
-# 1f. QuickBooks Code Information 
+def update_subcategory(subcat_id, new_name):
+    return update_name_if_unique("qb_categories", "id", subcat_id, "name", new_name)
+   
+
+# 26
+def delete_subcategory(subcat_id):
+    # Check if any QB accounts are linked to this subcategory
+    query_check = "SELECT 1 FROM qb_accounts WHERE category_id = :subcat_id LIMIT 1"
+    if fetch_one(query_check, {"subcat_id": subcat_id}):
+        return False
+
+    # Safe to delete
+    query_delete = "DELETE FROM qb_categories WHERE id = :subcat_id"
+    execute_query(query_delete, {"subcat_id": subcat_id})
+    return True
+
+# --------------
+# QB Code Logic
+# ---------------
+
+# 27
+def get_qb_codes(category_id=None):
+    if category_id:
+        query = "SELECT code, name FROM qb_accounts WHERE category_id = :category_id ORDER BY code"
+        return fetch_all(query, {"category_id": category_id})
+    else:
+        query = "SELECT code, name FROM qb_accounts ORDER BY code"
+        return fetch_all(query)
+
+
+# 28
 def add_qb_code(code, name, category_id):
     return insert_if_not_exists(
         table="qb_accounts",
@@ -320,79 +470,331 @@ def add_qb_code(code, name, category_id):
         case_insensitive_fields=["code"]
     )
 
-# M:M Custom 
-def add_qb_mapping(grant_id, qb_code, line_item_id):
-    return insert_if_not_exists(
-        table="qb_to_grant_mapping",
-        fields=["grant_id", "qb_code", "grant_line_item_id"],
-        values={
-            "grant_id": grant_id,
-            "qb_code": qb_code,
-            "grant_line_item_id": line_item_id
-        },
-        conflict_fields=["grant_id", "qb_code", "grant_line_item_id"]
-    )
+# def add_qb_code(code, name, category_id):
+#     # Check for existing code to simulate "INSERT OR IGNORE"
+#     check_query = "SELECT 1 FROM qb_accounts WHERE code = :code"
+#     exists = fetch_one(check_query, {"code": code})
 
+#     if exists:
+#         return False  # Already exists
 
+#     insert_query = """
+#         INSERT INTO qb_accounts (code, name, category_id)
+#         VALUES (:code, :name, :category_id)
+#         ON CONFLICT (name) DO NOTHING
+#     """
+#     execute_query(insert_query, {
+#         "code": code,
+#         "name": name.strip(),
+#         "category_id": category_id
+#     })
+#     return True
 
-# ------------
-# Update Logic
-# -------------
+# 29 
 
-# A
-def update_grant(grant_id, grant_name, funder_id, start_date, end_date, total_award, status, notes):
-    return update_record(
-        table="grants",
-        id_column="id",
-        id_value=grant_id,
-        update_fields={
-            "name": grant_name,
-            "funder_id": funder_id,
-            "start_date": start_date.isoformat() if isinstance(start_date, date) else start_date,
-            "end_date": end_date.isoformat() if isinstance(end_date, date) else end_date,
-            "total_award": total_award,
-            "status": status,
-            "notes": notes if isinstance(notes, str) and notes.strip() else None
-        }
-    )
-
-
-
-# B
-def update_line_item(line_item_id, name, description, allocated_amount):
-    return update_record(
-        table="grant_line_items",
-        id_column="id",
-        id_value=line_item_id,
-        update_fields={
-            "name": name,
-            "description": description,
-            "allocated_amount": allocated_amount,
-        }
-    )
-
-# C
-def update_line_item_allocated(item_id, new_allocated_amount):
-    return update_record(
-        table="grant_line_items",
-        id_column="id",
-        id_value=item_id,
-        update_fields={
-            "allocated_amount": new_allocated_amount
-        }
-    )
-
-# D
-def update_parent_category(parent_id, new_name):
-    return update_name_if_unique("qb_parent_categories", "id", parent_id, "name", new_name)
-
-# E
-def update_subcategory(subcat_id, new_name):
-    return update_name_if_unique("qb_categories", "id", subcat_id, "name", new_name)
-   
-# F
 def update_qb_code(code, new_name):
     return update_name_if_unique("qb_accounts", "code", code.strip(), "name", new_name)
 
+# def update_qb_code(code, new_name):
+#     query = """
+#         UPDATE qb_accounts
+#         SET name = :name
+#         WHERE code = :code
+#     """
+#     execute_query(query, {
+#         "name": new_name.strip(),
+#         "code": code.strip()
+#     })
+    
+
+# 30
+def delete_qb_code(code):
+    query = "DELETE FROM qb_accounts WHERE code = :code"
+    execute_query(query, {"code": code.strip()})
+
+# 31
+def get_filtered_qb_codes(parent_filter="All", sub_filter="All"):
+    base_query = """
+        SELECT a.code, a.name, c.name AS subcategory, p.name AS parent_category
+        FROM qb_accounts a
+        JOIN qb_categories c ON a.category_id = c.id
+        JOIN qb_parent_categories p ON c.parent_id = p.id
+    """
+    filters = []
+    params = {}
+
+    if parent_filter != "All":
+        filters.append("p.name = :parent_name")
+        params["parent_name"] = parent_filter.strip()
+
+    if sub_filter != "All":
+        filters.append("c.name = :sub_name")
+        params["sub_name"] = sub_filter.strip()
+
+    if filters:
+        base_query += " WHERE " + " AND ".join(filters)
+
+    base_query += " ORDER BY p.name, c.name, a.code"
+
+    results = fetch_all(base_query, params)
+    return pd.DataFrame(results)
 
 
+
+
+# ---------------------
+# --- Mapping Logic ---
+# ---------------------
+# 32
+def get_mappings_for_grant(grant_id):
+    query = """
+        SELECT li.name AS line_item, a.code AS qb_code, a.name AS qb_name,
+               c.name AS subcategory, p.name AS parent_category
+        FROM grant_line_items_maps m
+        JOIN grant_line_items li ON m.line_item_id = li.id
+        JOIN qb_accounts a ON m.qb_code = a.code
+        JOIN qb_categories c ON a.category_id = c.id
+        JOIN qb_parent_categories p ON c.parent_id = p.id
+        WHERE m.grant_id = :grant_id
+        ORDER BY li.name, p.name, c.name, a.code
+    """
+    with engine.connect() as conn:
+        result = conn.execute(text(query), {"grant_id": grant_id})
+        return pd.DataFrame(result.fetchall(), columns=result.keys())
+
+# 33
+def add_qb_mapping(grant_id, qb_code, line_item_id):
+    check_query = """
+        SELECT 1 FROM qb_to_grant_mapping
+        WHERE grant_id = :grant_id AND qb_code = :qb_code AND grant_line_item_id = :line_item_id
+        LIMIT 1
+    """
+    existing = fetch_one(check_query, {
+        "grant_id": grant_id,
+        "qb_code": qb_code,
+        "line_item_id": line_item_id,
+    })
+
+    if existing:
+        return False  # Mapping already exists
+
+    insert_query = """
+        INSERT INTO qb_to_grant_mapping (grant_id, qb_code, grant_line_item_id)
+        VALUES (:grant_id, :qb_code, :line_item_id)
+    """
+    execute_query(insert_query, {
+        "grant_id": grant_id,
+        "qb_code": qb_code,
+        "line_item_id": line_item_id,
+    })
+
+    return True
+
+
+# 34
+def delete_qb_mapping(mapping_id):
+    query = "DELETE FROM qb_to_grant_mapping WHERE id = :id"
+    execute_query(query, {"id": mapping_id})
+
+
+
+# -----------------------------
+#   Anticipated Expenses Logic
+# ----------------------------
+# 37
+def get_anticipated_expenses_for_grant(grant_id):
+    query = """
+        SELECT month, expected_amount, line_item_id
+        FROM anticipated_expenses
+        WHERE grant_id = :grant_id
+        ORDER BY month
+    """
+    return fetch_all(query, {"grant_id": grant_id})
+
+# 38
+def save_anticipated_expense(grant_id, line_item_id, month, expected_amount):
+    # Check if it already exists
+    check_query = """
+        SELECT id FROM anticipated_expenses
+        WHERE grant_id = :grant_id AND line_item_id = :line_item_id AND month = :month
+    """
+    existing = fetch_one(check_query, {
+        "grant_id": grant_id,
+        "line_item_id": line_item_id,
+        "month": month
+    })
+
+    if existing:
+        # Update
+        update_query = """
+            UPDATE anticipated_expenses
+            SET expected_amount = :expected_amount
+            WHERE id = :id
+        """
+        execute_query(update_query, {
+            "expected_amount": expected_amount,
+            "id": existing["id"]
+        })
+    else:
+        # Insert
+        insert_query = """
+            INSERT INTO anticipated_expenses (grant_id, line_item_id, month, expected_amount)
+            VALUES (:grant_id, :line_item_id, :month, :expected_amount)
+        """
+        execute_query(insert_query, {
+            "grant_id": grant_id,
+            "line_item_id": line_item_id,
+            "month": month,
+            "expected_amount": expected_amount
+        })
+
+# 39
+def initialize_anticipated_expenses(grant_id, line_item_id, start_date, end_date, allocated_amount=0.0):
+    months = generate_month_range(start_date, end_date)
+    distribution = distribute_amount_evenly(allocated_amount, months)
+
+    for month, expected_amount in distribution.items():
+        save_anticipated_expense(grant_id, line_item_id, month, expected_amount)
+
+
+# 40
+def delete_anticipated_expenses_for_grant(grant_id):
+    query = "DELETE FROM anticipated_expenses WHERE grant_id = :grant_id"
+    execute_query(query, {"grant_id": grant_id})
+
+
+
+# -----------------------
+#  Actual Expenses Logic
+# -----------------------
+# 35
+def get_actual_expenses_for_grant(grant_id, month):
+    query = """
+        SELECT month, qb_code, amount, notes, date_submitted, line_item_id
+        FROM actual_expenses
+        WHERE grant_id = :grant_id AND month = :month
+    """
+    return fetch_all(query, {"grant_id": grant_id, "month": month})
+
+
+# 36
+def save_actual_expense(grant_id, month, qb_code, line_item_id, amount, notes, date_submitted):
+    # Check for an existing record
+    check_query = """
+        SELECT id FROM actual_expenses
+        WHERE grant_id = :grant_id AND month = :month AND qb_code = :qb_code AND line_item_id = :line_item_id
+    """
+    existing = fetch_one(check_query, {
+        "grant_id": grant_id,
+        "month": month,
+        "qb_code": qb_code,
+        "line_item_id": line_item_id
+    })
+
+    if existing:
+        # Update the record
+        update_query = """
+            UPDATE actual_expenses
+            SET amount = :amount, notes = :notes, date_submitted = :date_submitted
+            WHERE id = :id
+        """
+        execute_query(update_query, {
+            "amount": amount,
+            "notes": notes,
+            "date_submitted": date_submitted,
+            "id": existing["id"]
+        })
+    else:
+        # Insert a new record
+        insert_query = """
+            INSERT INTO actual_expenses (grant_id, month, qb_code, amount, notes, line_item_id, date_submitted)
+            VALUES (:grant_id, :month, :qb_code, :amount, :notes, :line_item_id, :date_submitted)
+        """
+        execute_query(insert_query, {
+            "grant_id": grant_id,
+            "month": month,
+            "qb_code": qb_code,
+            "amount": amount,
+            "notes": notes,
+            "line_item_id": line_item_id,
+            "date_submitted": date_submitted
+        })
+
+
+
+# ---------------------------
+# Summary + Validation Logic 
+# ----------------------------
+
+
+# 41
+def is_allocation_exceeding_total(grant_id):
+    query = """
+        SELECT g.total_award, COALESCE(SUM(li.allocated_amount), 0) AS total_allocated
+        FROM grants g
+        LEFT JOIN grant_line_items li ON g.id = li.grant_id
+        WHERE g.id = :grant_id
+        GROUP BY g.id
+    """
+    result = fetch_one(query, {"grant_id": grant_id})
+    if result:
+        total_award, total_allocated = result
+        return total_allocated > total_award, total_allocated, total_award
+    return False, 0, 0
+
+
+
+# exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
+# if exceeds:
+#     st.warning(f"⚠️ Total allocated (${allocated}) exceeds total award (${total}).")
+
+# 42
+def get_total_allocated_for_grant(grant_id):
+    query = """
+        SELECT COALESCE(SUM(allocated_amount), 0.0) AS total_allocated
+        FROM grant_line_items
+        WHERE grant_id = :grant_id
+    """
+    result = fetch_one(query, {"grant_id": grant_id})
+    return result[0] if result else 0.0
+
+
+# 43
+def get_line_item_allocations(grant_id):
+    query = """
+        SELECT id, name, allocated_amount
+        FROM grant_line_items
+        WHERE grant_id = :grant_id
+    """
+    return fetch_all(query, {"grant_id": grant_id})
+
+# 44
+def get_actual_expense_totals(grant_id):
+    query = """
+        SELECT line_item_id, SUM(amount) AS total_spent
+        FROM actual_expenses
+        WHERE grant_id = :grant_id
+        GROUP BY line_item_id
+    """
+    return fetch_all(query, {"grant_id": grant_id})
+
+# 45
+def get_grant_summary_data(grant_id):
+    # Fetch allocations and actuals (both use SQLAlchemy under the hood now)
+    line_items = get_line_item_allocations(grant_id)
+    actuals = dict(get_actual_expense_totals(grant_id))  # line_item_id → total_spent
+
+    data = []
+    for item_id, name, allocated in line_items:
+        spent = actuals.get(item_id, 0.0)
+        percent_spent = round((spent / allocated) * 100, 1) if allocated else 0.0
+        remaining = allocated - spent
+        data.append({
+            "Line Item": name,
+            "Allocated": allocated,
+            "Spent": spent,
+            "% Spent": f"{percent_spent}%",
+            "Remaining": remaining
+        })
+
+    return pd.DataFrame(data)
