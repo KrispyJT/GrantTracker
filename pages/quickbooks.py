@@ -27,7 +27,6 @@ st.markdown("### 📁 Parent Category")
 parent_cats = get_parent_categories()
 parent_dict = {row["name"]: row["id"] for row in parent_cats}
 parent_names = list(parent_dict.keys())
-
 selected_parent = st.selectbox("Select Parent Category", parent_names or ["No Categories Yet"])
 
 with st.expander("➕ Add New Parent Category"):
@@ -35,9 +34,12 @@ with st.expander("➕ Add New Parent Category"):
         new_parent = st.text_input("New Parent Category Name")
         new_desc = st.text_input("Description")
         if st.form_submit_button("Add") and new_parent.strip():
-            add_parent_category(new_parent.strip(), new_desc.strip())
-            st.success("Parent category added.")
-            st.rerun()
+            success = add_parent_category(new_parent.strip(), new_desc.strip())
+            if success:
+                st.success('Parent Category Added')
+                st.rerun()
+            else:
+                st.warning("A parent category with that name already exists.")
 
 if selected_parent in parent_dict:
     with st.expander("✏️ Edit/Delete Parent Category"):
@@ -76,9 +78,12 @@ if parent_id is not None:
         with st.form("add_subcat"):
             new_sub = st.text_input("New Subcategory")
             if st.form_submit_button("Add") and new_sub.strip():
-                add_subcategory(new_sub.strip(), parent_dict[selected_parent])
-                st.success("Subcategory added.")
-                st.rerun()
+                success = add_subcategory(new_sub.strip(), parent_dict[selected_parent])
+                if success:
+                    st.success("Subcategory added.")
+                    st.rerun()
+                else:
+                    st.warning("Subcategory already exists under this parent category.")
 
     if selected_sub in cat_dict:
         with st.expander("✏️ Edit/Delete Subcategory"):
@@ -101,39 +106,88 @@ if parent_id is not None:
 # QB CODES
 # -------------------
 st.markdown("### 📇 QB Codes")
-if selected_sub in cat_dict:
-    code = st.text_input("QB Code (numbers only, e.g., 8705)")
-    desc = st.text_input("Description (e.g., Workshops)")
-    if st.button("Add QB Code"):
-        if not code.strip().isdigit():
-            st.error("Code must be numeric.")
-        elif not desc.strip():
-            st.error("Description cannot be empty.")
-        else:
-            added = add_qb_code(code.strip(), desc.strip(), cat_dict[selected_sub])
-            if added:
-                st.success("Code added.")
-                st.rerun()
-            else:
-                st.error("⚠️ That code already exists.")
 
-    st.subheader("✏️ Edit/Delete QB Code")
+if selected_sub in cat_dict:
+
+    with st.expander("➕ Add New QB Code"):
+        with st.form("add_qb_code"):
+            code = st.text_input("QB Code (numbers only, e.g., 8705)")
+            desc = st.text_input("Description (e.g., Workshops)")
+            if st.form_submit_button("Add Code"):
+                if not code.strip().isdigit():
+                    st.error("Code must be numeric.")
+                elif not desc.strip():
+                    st.error("Description cannot be empty.")
+                else:
+                    added = add_qb_code(code.strip(), desc.strip(), cat_dict[selected_sub])
+                    if added:
+                        st.success("Code added.")
+                        st.rerun()
+                    else:
+                        st.error("⚠️ That code already exists.")
+
+    # Edit/Delete in Expander
     codes = get_qb_codes()
     if codes:
-        label_map = {f"{row['code']} - {row['name']}": row['code'] for row in codes}
-        selected_label = st.selectbox("Select Code to Edit", list(label_map.keys()))
-        selected_code = label_map[selected_label]
-        current_desc = next((row["name"] for row in codes if row["code"] == selected_code), "")
-        new_desc = st.text_input("New Description", value=current_desc)
-        col1, col2 = st.columns(2)
-        if col1.button("Update Description"):
-            update_qb_code(selected_code, new_desc.strip())
-            st.success("Updated.")
-            st.rerun()
-        if col2.button("❌ Delete QB Code"):
-            delete_qb_code(selected_code)
-            st.warning(f"Code '{selected_code}' deleted.")
-            st.rerun()
+        with st.expander("✏️ Edit/Delete QB Code"):
+            label_map = {f"{row['code']} - {row['name']}": row['code'] for row in codes}
+            selected_label = st.selectbox("Select Code to Edit", list(label_map.keys()))
+            selected_code = label_map[selected_label]
+            current_desc = next((row["name"] for row in codes if row["code"] == selected_code), "")
+            new_desc = st.text_input("New Description", value=current_desc)
+            col1, col2 = st.columns(2)
+            if col1.button("Update Description"):
+                update_qb_code(selected_code, new_desc.strip())
+                st.success("Updated.")
+                st.rerun()
+            if col2.button("❌ Delete QB Code"):
+                delete_qb_code(selected_code)
+                st.warning(f"Code '{selected_code}' deleted.")
+                st.rerun()
+
+
+
+
+
+
+
+
+
+##########
+# st.markdown("### 📇 QB Codes")
+# if selected_sub in cat_dict:
+#     code = st.text_input("QB Code (numbers only, e.g., 8705)")
+#     desc = st.text_input("Description (e.g., Workshops)")
+#     if st.button("Add QB Code"):
+#         if not code.strip().isdigit():
+#             st.error("Code must be numeric.")
+#         elif not desc.strip():
+#             st.error("Description cannot be empty.")
+#         else:
+#             added = add_qb_code(code.strip(), desc.strip(), cat_dict[selected_sub])
+#             if added:
+#                 st.success("Code added.")
+#                 st.rerun()
+#             else:
+#                 st.error("⚠️ That code already exists.")
+
+#     st.subheader("✏️ Edit/Delete QB Code")
+#     codes = get_qb_codes()
+#     if codes:
+#         label_map = {f"{row['code']} - {row['name']}": row['code'] for row in codes}
+#         selected_label = st.selectbox("Select Code to Edit", list(label_map.keys()))
+#         selected_code = label_map[selected_label]
+#         current_desc = next((row["name"] for row in codes if row["code"] == selected_code), "")
+#         new_desc = st.text_input("New Description", value=current_desc)
+#         col1, col2 = st.columns(2)
+#         if col1.button("Update Description"):
+#             update_qb_code(selected_code, new_desc.strip())
+#             st.success("Updated.")
+#             st.rerun()
+#         if col2.button("❌ Delete QB Code"):
+#             delete_qb_code(selected_code)
+#             st.warning(f"Code '{selected_code}' deleted.")
+#             st.rerun()
 
 # -------------------
 # FILTERS & DISPLAY
@@ -142,7 +196,7 @@ st.subheader("📂 Filter Accounts")
 parent_filter = st.selectbox("Filter by Parent Category", ["All"] + parent_names)
 sub_filter = []
 if parent_filter != "All" and parent_filter in parent_dict:
-    sub_filter = [name for name, _ in get_subcategories(parent_dict[parent_filter])]
+    sub_filter = [name for _, name in get_subcategories(parent_dict[parent_filter])]
 
 sub_selected = st.selectbox("Filter by Subcategory", ["All"] + sub_filter if sub_filter else ["All"])
 filtered_df = get_filtered_qb_codes(parent_filter, sub_selected)

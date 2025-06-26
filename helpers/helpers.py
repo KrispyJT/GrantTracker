@@ -1,7 +1,11 @@
-# helpers/date_helpers.py
+# helpers/helpers.py
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+
+
+# ---- Date Utils
 
 def generate_month_range(start_date, end_date):
     """
@@ -27,6 +31,7 @@ def validate_date_range(start_date, end_date):
     if end_date < start_date:
         raise ValueError("End date must be after start date.")
 
+# Financial Utilities
 
 def distribute_amount_evenly(allocated_amount: float, months: list[str]) -> dict[str, float]:
     """Evenly distribute the allocated amount across the months without exceeding it."""
@@ -43,3 +48,12 @@ def distribute_amount_evenly(allocated_amount: float, months: list[str]) -> dict
         distribution[last_month] = round(distribution[last_month] + remainder, 2)
 
     return distribution
+
+# ----- String Utilities -----
+def normalize_string(value, title_case=True):
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        return value
+    value = value.strip()
+    return value.title() if title_case else value

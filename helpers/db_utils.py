@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, text
 import pandas as pd
 import streamlit as st
 from datetime import date
-from helpers.date_helpers import generate_month_range, distribute_amount_evenly
+from helpers.helpers import generate_month_range, distribute_amount_evenly, normalize_string
 
 # Connect using secrets
 engine = create_engine(st.secrets["database"]["url"])
@@ -37,6 +37,101 @@ def insert_and_return_id(query, params=None):
     with engine.begin() as conn:
         result = conn.execute(text(query + " RETURNING id"), params or {})
         return result.scalar_one()
+    
+
+
+def insert_if_not_exists(table, fields, values, conflict_fields, case_insensitive_fields=None, normalize_case=True):
+    """
+    Generic insert-if-not-exists function with optional case normalization.
+
+    Args:
+        table (str): Table name.
+        fields (list[str]): Fields to insert.
+        values (dict): Field-value pairs.
+        conflict_fields (list[str]): Fields to check for duplicates.
+        case_insensitive_fields (list[str], optional): Fields for case-insensitive duplicate check.
+        normalize_case (bool): If True, title-cases string values before insertion.
+
+    Returns:
+        bool: True if inserted, False if duplicate.
+    """
+    # Clean and optionally normalize string values
+    clean_values = {}
+    for k, v in values.items():
+        if isinstance(v, str):
+            val = v.strip()
+            clean_values[k] = val.title() if normalize_case else val
+        else:
+            clean_values[k] = v
+
+    # Check for existing record (case-insensitive for specified fields)
+    where_clauses = []
+    params = {}
+    for field in conflict_fields:
+        param_key = f"{field}"
+        if case_insensitive_fields and field in case_insensitive_fields:
+            where_clauses.append(f"LOWER({field}) = LOWER(:{param_key})")
+        else:
+            where_clauses.append(f"{field} = :{param_key}")
+        params[param_key] = clean_values[field]
+
+    check_query = f"SELECT 1 FROM {table} WHERE {' AND '.join(where_clauses)}"
+    if fetch_one(check_query, params):
+        return False
+
+    # Insert if not exists
+    insert_fields = ", ".join(fields)
+    insert_placeholders = ", ".join(f":{f}" for f in fields)
+    insert_query = f"""
+        INSERT INTO {table} ({insert_fields})
+        VALUES ({insert_placeholders})
+        ON CONFLICT DO NOTHING
+    """
+    execute_query(insert_query, clean_values)
+    return True
+
+
+
+
+def update_name_if_unique(table, id_column, id_value, name_column, new_name):
+    """
+    Update the `name_column` of a row in `table` only if no other row (case-insensitive)
+    already uses the new name.
+
+    Args:
+        table (str): The table name
+        id_column (str): The column for the row's ID (e.g. 'id' or 'code')
+        id_value: The value of the current row's ID
+        name_column (str): The name column to update
+        new_name (str): The desired new name
+
+    Returns:
+        bool: True if updated successfully, False if name already exists
+    """
+    clean_name = new_name.strip()
+    formatted_name = clean_name.title()
+
+    # Check for name conflict
+    query_check = f"""
+        SELECT 1 FROM {table}
+        WHERE LOWER({name_column}) = LOWER(:name)
+        AND {id_column} != :id_value
+    """
+    existing = fetch_one(query_check, {"name": formatted_name, "id_value": id_value})
+    if existing:
+        return False
+
+    # Perform the update
+    query_update = f"""
+        UPDATE {table}
+        SET {name_column} = :name
+        WHERE {id_column} = :id_value
+    """
+    execute_query(query_update, {"name": formatted_name, "id_value": id_value})
+    return True
+
+
+
 
 # -------------------------
 # Grant Logic
@@ -216,6 +311,14 @@ def delete_line_item(item_id):
 # -------------------------
 # QuickBooks Logic
 # -------------------------
+
+
+
+
+
+# ---------------
+# Parent Logic
+# ---------------
 # 19
 def get_parent_categories():
     query = "SELECT id, name FROM qb_parent_categories ORDER BY name"
@@ -223,22 +326,46 @@ def get_parent_categories():
 
 # 20
 def add_parent_category(name, desc):
-    query = """
-        INSERT INTO qb_parent_categories (name, description)
-        VALUES (:name, :description)
-        ON CONFLICT (name) DO NOTHING
-    """
-    cleaned_desc = desc.strip() if desc and isinstance(desc, str) else None
-    execute_query(query, {"name": name.strip(), "description": cleaned_desc})
+    return insert_if_not_exists(
+        table="qb_parent_categories",
+        fields=["name", "description"],
+        values={
+            "name": name,
+            "description": desc if isinstance(desc, str) and desc.strip() else None
+        },
+        conflict_fields=["name"],
+        case_insensitive_fields=["name"]
+    )
+
+
+# def add_parent_category(name, desc):
+#     existing = fetch_one("SELECT 1 FROM qb_parent_categories WHERE name = :name", {"name": name.strip()})
+#     if existing:
+#         return False  # already exists
+#     query = """
+#         INSERT INTO qb_parent_categories (name, description)
+#         VALUES (:name, :description)
+#         ON CONFLICT (name) DO NOTHING
+#     """
+#     cleaned_desc = desc.strip() if desc and isinstance(desc, str) else None
+#     execute_query(query, {"name": name.strip(), "description": cleaned_desc})
+#     return True
+
+
+
 
 # 21
+# def update_parent_category(parent_id, new_name):
+#     query = """
+#         UPDATE qb_parent_categories
+#         SET name = :name
+#         WHERE id = :id
+#     """
+#     execute_query(query, {"name": new_name.strip(), "id": parent_id})
 def update_parent_category(parent_id, new_name):
-    query = """
-        UPDATE qb_parent_categories
-        SET name = :name
-        WHERE id = :id
-    """
-    execute_query(query, {"name": new_name.strip(), "id": parent_id})
+    return update_name_if_unique("qb_parent_categories", "id", parent_id, "name", new_name)
+
+
 
 # 22
 def delete_parent_category(parent_id):
@@ -252,6 +379,10 @@ def delete_parent_category(parent_id):
     execute_query(query_delete, {"parent_id": parent_id})
     return True
 
+# ----------------
+# Subcategory Logic
+# ----------------
+
 # 23
 def get_subcategories(parent_id=None):
     if isinstance(parent_id, int):
@@ -261,26 +392,44 @@ def get_subcategories(parent_id=None):
         query = "SELECT id, name FROM qb_categories ORDER BY name"
         return fetch_all(query)
 
-# def get_subcategories(parent_id=None):
-#     if parent_id is not None:
-#         query = "SELECT id, name FROM qb_categories WHERE parent_id = :parent_id ORDER BY name"
-#         return fetch_all(query, {"parent_id": parent_id})
-#     else:
-#         query = "SELECT id, name FROM qb_categories ORDER BY name"
-#         return fetch_all(query)
 # 24
+# def add_subcategory(name, parent_id):
+#     cleaned_name = name.strip()
+
+#     # case insensitive check against existing subcats under same parent cat
+#     check_query = """
+#         SELECT 1 FROM qb_categories
+#         WHERE LOWER(name) = LOWER(:name) AND parent_id = :parent_id
+#     """
+
+#     exists = fetch_one(check_query, {"name": cleaned_name, "parent_id": parent_id})
+#     if exists:
+#         return False # duplicate found
+
+#     insert_query = """
+#         INSERT INTO qb_categories (name, parent_id)
+#         VALUES (:name, :parent_id)
+#         ON CONFLICT DO NOTHING
+#     """
+#     execute_query(insert_query, {"name": name, "parent_id": parent_id})
+#     return True
 def add_subcategory(name, parent_id):
-    query = """
-        INSERT INTO qb_categories (name, parent_id)
-        VALUES (:name, :parent_id)
-        ON CONFLICT DO NOTHING
-    """
-    execute_query(query, {"name": name.strip(), "parent_id": parent_id})
+    return insert_if_not_exists(
+        table="qb_categories",
+        fields=["name", "parent_id"],
+        values={"name": name, "parent_id": parent_id},
+        conflict_fields=["name", "parent_id"],
+        case_insensitive_fields=["name"]
+    )
 
 # 25
+# def update_subcategory(subcat_id, new_name):
+#     query = "UPDATE qb_categories SET name = :new_name WHERE id = :subcat_id"
+#     execute_query(query, {"new_name": new_name.strip(), "subcat_id": subcat_id})
+
 def update_subcategory(subcat_id, new_name):
-    query = "UPDATE qb_categories SET name = :new_name WHERE id = :subcat_id"
-    execute_query(query, {"new_name": new_name.strip(), "subcat_id": subcat_id})
+    return update_name_if_unique("qb_categories", "id", subcat_id, "name", new_name)
+   
 
 # 26
 def delete_subcategory(subcat_id):
@@ -294,6 +443,10 @@ def delete_subcategory(subcat_id):
     execute_query(query_delete, {"subcat_id": subcat_id})
     return True
 
+# --------------
+# QB Code Logic
+# ---------------
+
 # 27
 def get_qb_codes(category_id=None):
     if category_id:
@@ -306,35 +459,54 @@ def get_qb_codes(category_id=None):
 
 # 28
 def add_qb_code(code, name, category_id):
-    # Check for existing code to simulate "INSERT OR IGNORE"
-    check_query = "SELECT 1 FROM qb_accounts WHERE code = :code"
-    exists = fetch_one(check_query, {"code": code})
+    return insert_if_not_exists(
+        table="qb_accounts",
+        fields=["code", "name", "category_id"],
+        values={
+            "code": code,
+            "name": name,
+            "category_id": category_id
+        },
+        conflict_fields=["code"],
+        case_insensitive_fields=["code"]
+    )
 
-    if exists:
-        return False  # Already exists
+# def add_qb_code(code, name, category_id):
+#     # Check for existing code to simulate "INSERT OR IGNORE"
+#     check_query = "SELECT 1 FROM qb_accounts WHERE code = :code"
+#     exists = fetch_one(check_query, {"code": code})
 
-    insert_query = """
-        INSERT INTO qb_accounts (code, name, category_id)
-        VALUES (:code, :name, :category_id)
-    """
-    execute_query(insert_query, {
-        "code": code,
-        "name": name.strip(),
-        "category_id": category_id
-    })
-    return True
+#     if exists:
+#         return False  # Already exists
+
+#     insert_query = """
+#         INSERT INTO qb_accounts (code, name, category_id)
+#         VALUES (:code, :name, :category_id)
+#         ON CONFLICT (name) DO NOTHING
+#     """
+#     execute_query(insert_query, {
+#         "code": code,
+#         "name": name.strip(),
+#         "category_id": category_id
+#     })
+#     return True
 
 # 29 
+
 def update_qb_code(code, new_name):
-    query = """
-        UPDATE qb_accounts
-        SET name = :name
-        WHERE code = :code
-    """
-    execute_query(query, {
-        "name": new_name.strip(),
-        "code": code.strip()
-    })
+    return update_name_if_unique("qb_accounts", "code", code.strip(), "name", new_name)
+
+# def update_qb_code(code, new_name):
+#     query = """
+#         UPDATE qb_accounts
+#         SET name = :name
+#         WHERE code = :code
+#     """
+#     execute_query(query, {
+#         "name": new_name.strip(),
+#         "code": code.strip()
+#     })
+    
 
 # 30
 def delete_qb_code(code):

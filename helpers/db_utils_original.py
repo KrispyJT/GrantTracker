@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 import pandas as pd
 import streamlit as st
 from datetime import date
-from helpers.date_helpers import generate_month_range, distribute_amount_evenly
+from helpers.helpers import generate_month_range, distribute_amount_evenly
 
 # Connect using secrets
 engine = create_engine(st.secrets["database"]["url"])

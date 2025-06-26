@@ -11,7 +11,7 @@ from helpers.db_utils import (
     get_actual_expenses_for_grant,
     save_actual_expense,
 )
-from helpers.date_helpers import generate_month_range
+from helpers.helpers import generate_month_range
 
 st.set_page_config(page_title="💵 Actual Expenses", layout="wide")
 st.title("Enter Monthly Actual Expenses")
