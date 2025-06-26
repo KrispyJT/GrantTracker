@@ -152,12 +152,6 @@ if selected_sub in cat_dict:
 
 
 
-
-
-
-
-
-
 ##########
 # st.markdown("### 📇 QB Codes")
 # if selected_sub in cat_dict:
@@ -201,7 +195,8 @@ st.subheader("📂 Filter Accounts")
 parent_filter = st.selectbox("Filter by Parent Category", ["All"] + parent_names)
 sub_filter = []
 if parent_filter != "All" and parent_filter in parent_dict:
-    sub_filter = [name for _, name in get_subcategories(parent_dict[parent_filter])]
+    sub_filter = [row["name"] for row in get_subcategories(parent_dict[parent_filter])]
+
 
 sub_selected = st.selectbox("Filter by Subcategory", ["All"] + sub_filter if sub_filter else ["All"])
 filtered_df = get_filtered_qb_codes(parent_filter, sub_selected)
