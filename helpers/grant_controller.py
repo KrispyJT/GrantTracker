@@ -11,6 +11,7 @@ from .db_utils import (
 )
 
 def handle_add_grant(grant_name, funder_name, funder_type, start_date, end_date, total_award, status, notes):
+    grant_name = grant_name.strip()
     if grant_exists(grant_name):
         raise ValueError("Grant with this name already exists.")
 

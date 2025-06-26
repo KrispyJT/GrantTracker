@@ -47,9 +47,12 @@ if selected_parent in parent_dict:
             new_name = st.text_input("Edit Name", value=selected_parent)
             col1, col2 = st.columns(2)
             if col1.form_submit_button("Update"):
-                update_parent_category(parent_dict[selected_parent], new_name.strip())
-                st.success("Updated.")
-                st.rerun()
+                updated = update_parent_category(parent_dict[selected_parent], new_name)
+                if updated:
+                    st.success("Updated")
+                    st.rerun()
+                else:
+                    st.warning("⚠️ A parent category with that name already exists.")
             if col2.form_submit_button("Delete"):
                 deleted = delete_parent_category(parent_dict[selected_parent])
                 if deleted:
@@ -57,7 +60,6 @@ if selected_parent in parent_dict:
                     st.rerun()
                 else:
                     st.warning("⚠️ Cannot delete: Subcategories exist.")
-
 # -------------------
 # SUBCATEGORY
 # -------------------
@@ -91,9 +93,12 @@ if parent_id is not None:
                 new_subname = st.text_input("Edit Subcategory Name", value=selected_sub)
                 col1, col2 = st.columns(2)
                 if col1.form_submit_button("Update"):
-                    update_subcategory(cat_dict[selected_sub], new_subname.strip())
-                    st.success("Updated.")
-                    st.rerun()
+                    updated = update_subcategory(cat_dict[selected_sub], new_subname.strip())
+                    if updated:
+                        st.success("Updated.")
+                        st.rerun()
+                    else:
+                        st.warning("⚠️ A subcategory with that name already exists under this parent.")
                 if col2.form_submit_button("Delete"):
                     deleted = delete_subcategory(cat_dict[selected_sub])
                     if deleted:

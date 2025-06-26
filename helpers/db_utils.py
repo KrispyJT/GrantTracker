@@ -223,11 +223,12 @@ def delete_record(table, id_column, id_value):
 
 
 def grant_exists(grant_name):
-    query = "SELECT 1 FROM grants WHERE LOWER(name) = LOWER(:name) LIMIT 1"
-    return fetch_one(query, {"name": grant_name.strip()})
+    normalized = grant_name.strip().lower()
+    query = "SELECT 1 FROM grants WHERE LOWER(TRIM(name)) = :normalized_name LIMIT 1"
+    return fetch_one(query, {"normalized_name": normalized})
 
 def get_all_grants():
-    fields = "g.id, g.name, f.name AS funder, g.start_date, g.end_date, g.total_award, g.notes"
+    fields = "g.id, g.name, f.name AS funder, g.start_date, g.end_date, g.total_award, g.status, g.notes"
     query = f"""
     SELECT {fields} 
     FROM grants g 
