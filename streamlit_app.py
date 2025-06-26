@@ -32,8 +32,10 @@ grants = get_all_grants()
 
 st.markdown("### 📋 Your Grants")
 if grants:
-    df = pd.DataFrame(grants, columns=["ID", "Grant Name", "Funder", "Start", "End", "Status", "Total Award", "Notes"])
-    st.dataframe(df.drop(columns=["ID"]), use_container_width=True)
+    df = pd.DataFrame(grants)
+    st.dataframe(df.drop(columns=["id"]), use_container_width=True)
+
+    grant_dict = {f"{row['name']} ({row['funder']})": row['id'] for row in grants}
 else:
     st.info("No grants found. Use the sidebar to navigate to ➕ Grants and add your first one!")
 

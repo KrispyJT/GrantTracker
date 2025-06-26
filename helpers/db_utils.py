@@ -228,7 +228,8 @@ def add_parent_category(name, desc):
         VALUES (:name, :description)
         ON CONFLICT (name) DO NOTHING
     """
-    execute_query(query, {"name": name.strip(), "description": desc.strip()})
+    cleaned_desc = desc.strip() if desc and isinstance(desc, str) else None
+    execute_query(query, {"name": name.strip(), "description": cleaned_desc})
 
 # 21
 def update_parent_category(parent_id, new_name):
@@ -253,12 +254,20 @@ def delete_parent_category(parent_id):
 
 # 23
 def get_subcategories(parent_id=None):
-    if parent_id is not None:
+    if isinstance(parent_id, int):
         query = "SELECT id, name FROM qb_categories WHERE parent_id = :parent_id ORDER BY name"
         return fetch_all(query, {"parent_id": parent_id})
     else:
         query = "SELECT id, name FROM qb_categories ORDER BY name"
         return fetch_all(query)
+
+# def get_subcategories(parent_id=None):
+#     if parent_id is not None:
+#         query = "SELECT id, name FROM qb_categories WHERE parent_id = :parent_id ORDER BY name"
+#         return fetch_all(query, {"parent_id": parent_id})
+#     else:
+#         query = "SELECT id, name FROM qb_categories ORDER BY name"
+#         return fetch_all(query)
 # 24
 def add_subcategory(name, parent_id):
     query = """
@@ -356,10 +365,8 @@ def get_filtered_qb_codes(parent_filter="All", sub_filter="All"):
 
     base_query += " ORDER BY p.name, c.name, a.code"
 
-    with engine.connect() as conn:
-        result = conn.execute(text(base_query), params)
-        return pd.DataFrame(result.fetchall(), columns=result.keys())
-
+    results = fetch_all(base_query, params)
+    return pd.DataFrame(results)
 
 
 
