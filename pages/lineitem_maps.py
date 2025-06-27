@@ -61,7 +61,9 @@ st.header("📋 Manage Line Items")
 
 # Fetch current line items
 line_items = get_line_items_by_grant(selected_grant_id)
-df_line_items = pd.DataFrame(line_items, columns=["ID", "Name", "Description", "Allocated Amount"])
+df_line_items = pd.DataFrame(line_items)
+# df_line_items = pd.DataFrame(line_items, columns=["ID", "Name", "Description", "Allocated Amount"])
+# st.write("📦 Raw line items data", line_items)
 
 # Add New Line Item
 with st.expander("➕ Add New Line Item"):
@@ -91,7 +93,13 @@ with st.expander("📝 Edit Line Items"):
     st.caption("You can only edit *Description* and *Allocated Amount*. To rename a line item, please delete and re-add it.")
 
     # Create copy without ID for display/editing
-    df_editable = df_line_items[["Name", "Description", "Allocated Amount"]]
+    # df_editable = df_line_items[["Name", "Description", "Allocated Amount"]]
+    df_editable = df_line_items.rename(columns={
+    "name": "Name",
+    "description": "Description",
+    "allocated_amount": "Allocated Amount"
+    })[["Name", "Description", "Allocated Amount"]]
+
 
     edited_df = st.data_editor(
     df_editable,
@@ -116,12 +124,12 @@ with st.expander("📝 Edit Line Items"):
         for i, row in edited_df.iterrows():
             original = df_line_items.iloc[i]
             if (
-                row["Description"].strip() != original["Description"]
-                or float(row["Allocated Amount"]) != original["Allocated Amount"]
+                row["Description"].strip() != original["description"]
+                or float(row["Allocated Amount"]) != original["allocated_amount"]
             ):
                 update_line_item(
-                    original["ID"],
-                    original["Name"],  # still useful in case your function needs it
+                    original["id"],
+                    original["name"],  # still useful in case your function needs it
                     row["Description"].strip(),
                     float(row["Allocated Amount"])
                 )
