@@ -546,10 +546,15 @@ def get_mappings_for_grant(grant_id):
         pd.DataFrame: Line item to QB code mappings.
     """
     query = """
-        SELECT li.name AS line_item, a.code AS qb_code, a.name AS qb_name,
-               c.name AS subcategory, p.name AS parent_category
-        FROM grant_line_items_maps m
-        JOIN grant_line_items li ON m.line_item_id = li.id
+        SELECT
+            m.id,
+            li.name AS line_item,
+            a.code AS qb_code,
+            a.name AS qb_name,
+            c.name AS subcategory,
+            p.name AS parent_category
+        FROM qb_to_grant_mapping m
+        JOIN grant_line_items li ON m.grant_line_item_id = li.id
         JOIN qb_accounts a ON m.qb_code = a.code
         JOIN qb_categories c ON a.category_id = c.id
         JOIN qb_parent_categories p ON c.parent_id = p.id

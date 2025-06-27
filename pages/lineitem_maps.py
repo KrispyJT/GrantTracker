@@ -38,20 +38,20 @@ if not grants:
     st.warning("⚠️ No grants found. Please add a grant first.")
     st.stop()
 
-grant_options = {f"{g[1]} ({g[2]})": g[0] for g in grants}
+grant_options = {f"{g['name']} ({g['funder']})": g['id'] for g in grants}
 selected_label = st.selectbox("🎯 Select a Grant", list(grant_options.keys()))
 selected_grant_id = grant_options.get(selected_label)
 
 # Grant Info Display
-selected_grant = next(g for g in grants if g[0] == selected_grant_id)
+selected_grant = next(g for g in grants if g["id"] == selected_grant_id)
 with st.expander("📄 Grant Overview", expanded=False):
-    st.markdown(f"**Grant Name:** {selected_grant[1]}")
-    st.markdown(f"**Funder:** {selected_grant[2]}")
-    st.markdown(f"**Status** {selected_grant[5]}")
-    st.markdown(f"**Total Award Amount:** ${selected_grant[6]:,.2f}")
-    st.markdown(f"**Start Date:** {selected_grant[3]} **End Date:** {selected_grant[4]}")
-    if selected_grant[7]:
-        st.info(f"**Notes:** {selected_grant[7]}")
+    st.markdown(f"**Grant Name:** {selected_grant['name']}")
+    st.markdown(f"**Funder:** {selected_grant['funder']}")
+    st.markdown(f"**Status** {selected_grant['status']}")
+    st.markdown(f"**Total Award Amount:** ${selected_grant['total_award']:,.2f}")
+    st.markdown(f"**Start Date:** {selected_grant['start_date']} **End Date:** {selected_grant['end_date']}")
+    if selected_grant['notes']:
+        st.info(f"**Notes:** {selected_grant['notes']}")
 
 # ----------------------------------
 # 2. Manage Line Items
@@ -85,21 +85,31 @@ with st.expander("➕ Add New Line Item"):
                 st.success(f"✅ '{li_name}' added.")
                 st.rerun()
 
-
+### WORLKING ON THIS RN
 # --- Edit Line Items ---
 with st.expander("📝 Edit Line Items"):
     st.caption("You can only edit *Description* and *Allocated Amount*. To rename a line item, please delete and re-add it.")
 
     # Create copy without ID for display/editing
-    df_editable = df_line_items.drop(columns=["ID"])
+    df_editable = df_line_items[["Name", "Description", "Allocated Amount"]]
 
     edited_df = st.data_editor(
-        df_editable,
-        use_container_width=True,
-        num_rows="fixed",
-        disabled=["Name"],  # Only Description + Allocated Amount are editable
-        key="line_editor"
+    df_editable,
+    use_container_width=True,
+    num_rows="fixed",
+    disabled={"Name": True},
+    hide_index=True,
+    key="line_editor"
     )
+
+
+    # edited_df = st.data_editor(
+    #     df_editable,
+    #     use_container_width=True,
+    #     num_rows="fixed",
+    #     disabled=["Name"],  # Only Description + Allocated Amount are editable
+    #     key="line_editor"
+    # )
 
     if st.button("💾 Save Changes to Line Items"):
         updates_made = False
@@ -111,7 +121,7 @@ with st.expander("📝 Edit Line Items"):
             ):
                 update_line_item(
                     original["ID"],
-                    original["Name"],
+                    original["Name"],  # still useful in case your function needs it
                     row["Description"].strip(),
                     float(row["Allocated Amount"])
                 )
@@ -124,10 +134,33 @@ with st.expander("📝 Edit Line Items"):
             st.info("ℹ️ No changes to save.")
 
 
+    # if st.button("💾 Save Changes to Line Items"):
+    #     updates_made = False
+    #     for i, row in edited_df.iterrows():
+    #         original = df_line_items.iloc[i]
+    #         if (
+    #             row["Description"].strip() != original["Description"]
+    #             or float(row["Allocated Amount"]) != original["Allocated Amount"]
+    #         ):
+    #             update_line_item(
+    #                 original["ID"],
+    #                 original["Name"],
+    #                 row["Description"].strip(),
+    #                 float(row["Allocated Amount"])
+    #             )
+    #             updates_made = True
+
+    #     if updates_made:
+    #         st.success("✅ Changes saved successfully.")
+    #         st.rerun()
+    #     else:
+    #         st.info("ℹ️ No changes to save.")
+
+
 # --- Delete Line Item ---
 with st.expander("❌ Delete Line Item"):
     updated_line_items = get_line_items_by_grant(selected_grant_id)
-    id_to_name = {item[0]: item[1] for item in updated_line_items}
+    id_to_name = {item['id']: item['name'] for item in updated_line_items}
 
     if id_to_name:
         selected_del_id = st.selectbox(
@@ -151,7 +184,7 @@ st.divider()
 st.header("🔗 Map QuickBooks Codes to Line Items")
 
 qb_data = get_filtered_qb_codes("All", "All")
-lineitem_labels = {li[1]: li[0] for li in line_items}
+lineitem_labels = {li['name']: li['id'] for li in line_items}
 
 with st.form("map_qb_code_form"):
     li_name = st.selectbox("Grant Line Item", options=list(lineitem_labels.keys()))
@@ -176,27 +209,35 @@ with st.form("map_qb_code_form"):
 st.header("📎 Existing QB Mappings")
 mappings = get_mappings_for_grant(selected_grant_id)
 
-if mappings:
-    df_map = pd.DataFrame(mappings, columns=["ID", "QB Code", "QB Name", "Line Item"])
+if not mappings.empty:
+    # Rename and reorder columns
+    df_map = mappings.rename(columns={
+        "id": "ID",
+        "qb_code": "QB Code",
+        "qb_name": "QB Name",
+        "line_item": "Line Item"
+    })[["ID", "QB Code", "QB Name", "Line Item"]]
+
+    # Group by line item
     grouped = df_map.groupby("Line Item")
 
+    # Determine which line items are not yet mapped
     mapped_items = df_map["Line Item"].unique().tolist()
     total_items = len(line_items)
-    unmapped_items = [li[1] for li in line_items if li[1] not in mapped_items]
+    unmapped_items = [li['name'] for li in line_items if li['name'] not in mapped_items]
 
-    # Summary
+    # Summary Section
     if total_items == 0:
         st.warning("⚠️ No line items created for this grant.")
     elif len(mapped_items) == total_items:
         st.success(f"✅ All {total_items} line items are mapped.")
     else:
         st.info(f"🔄 {len(mapped_items)} of {total_items} line items mapped. {len(unmapped_items)} remaining.")
-        # st.warning("**Unmapped items**: " + ", ".join(unmapped_items))
         st.warning("The following line items are not yet mapped:")
         for name in unmapped_items:
             st.markdown(f"- {name}")
 
-    # Show grouped mappings
+    # Show grouped mappings and delete buttons
     for li_name, group in grouped:
         with st.expander(f"🧾 {li_name}", expanded=False):
             for _, row in group.iterrows():
@@ -208,6 +249,45 @@ if mappings:
 else:
     st.info("ℹ️ No QuickBooks codes have been mapped yet.")
 
+
+
+
+### OLD
+# st.header("📎 Existing QB Mappings")
+# mappings = get_mappings_for_grant(selected_grant_id)
+
+# if mappings:
+#     df_map = pd.DataFrame(mappings, columns=["ID", "QB Code", "QB Name", "Line Item"])
+#     grouped = df_map.groupby("Line Item")
+
+#     mapped_items = df_map["Line Item"].unique().tolist()
+#     total_items = len(line_items)
+#     unmapped_items = [li[1] for li in line_items if li[1] not in mapped_items]
+
+#     # Summary
+#     if total_items == 0:
+#         st.warning("⚠️ No line items created for this grant.")
+#     elif len(mapped_items) == total_items:
+#         st.success(f"✅ All {total_items} line items are mapped.")
+#     else:
+#         st.info(f"🔄 {len(mapped_items)} of {total_items} line items mapped. {len(unmapped_items)} remaining.")
+#         # st.warning("**Unmapped items**: " + ", ".join(unmapped_items))
+#         st.warning("The following line items are not yet mapped:")
+#         for name in unmapped_items:
+#             st.markdown(f"- {name}")
+
+#     # Show grouped mappings
+#     for li_name, group in grouped:
+#         with st.expander(f"🧾 {li_name}", expanded=False):
+#             for _, row in group.iterrows():
+#                 st.markdown(f"• `{row['QB Code']}` – {row['QB Name']}")
+#                 if st.button("🗑️ Remove", key=f"del_map_{row['ID']}"):
+#                     delete_qb_mapping(row["ID"])
+#                     st.success("Mapping removed.")
+#                     st.rerun()
+# else:
+#     st.info("ℹ️ No QuickBooks codes have been mapped yet.")
+## END OF OLD
 
 
 #########
