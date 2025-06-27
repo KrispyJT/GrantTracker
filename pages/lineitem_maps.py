@@ -67,15 +67,17 @@ df_line_items = pd.DataFrame(line_items)
 
 # Add New Line Item
 with st.expander("➕ Add New Line Item"):
+    st.markdown("**Required:** `Name`, `Allocated Amount` &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; **Optional:** `Description`")
     with st.form("add_line_item_form"):
-        raw_name = st.text_input("Name")
-        raw_desc = st.text_area("Description")
-        li_alloc = st.number_input("Allocated Amount ($)", min_value=0.0, step=100.0)
+        raw_name = st.text_input("Name *", help="Required Field, e.g. alaries, Supplies, Evaluation")
+        raw_desc = st.text_area("Description (Optional)", help="Extra detail about the line item")
+        li_alloc = st.number_input("Allocated Amount ($) *", min_value=0.0, step=100.0, help="Required field, total amount allocated for this line item")
+
+        st.caption("Fields marked with * are required.")
 
         if st.form_submit_button("Add Line Item"):
             li_name = raw_name.strip().title()
-            li_desc = raw_desc.strip()
-
+            li_desc = raw_desc.strip() if raw_desc.strip() else None
             existing_names = [name.strip().title() for _, name, *_ in line_items]
 
             if not li_name:
@@ -83,57 +85,50 @@ with st.expander("➕ Add New Line Item"):
             elif li_name in existing_names:
                 st.error("⚠️ A line item with this name already exists for this grant.")
             else:
-                add_line_item(selected_grant_id, li_name, li_desc, li_alloc)
-                st.success(f"✅ '{li_name}' added.")
-                st.rerun()
+                result = add_line_item(selected_grant_id, li_name, li_desc, li_alloc)
+                if result:
+                    st.success(f"✅ '{li_name}' added.")
+                    st.rerun()
+                else:
+                    st.warning(f"{li_name} was not added. It may already exist.")
 
-### WORLKING ON THIS RN
 # --- Edit Line Items ---
 with st.expander("📝 Edit Line Items"):
     st.caption("You can only edit *Description* and *Allocated Amount*. To rename a line item, please delete and re-add it.")
 
-    # Create copy without ID for display/editing
-    # df_editable = df_line_items[["Name", "Description", "Allocated Amount"]]
     df_editable = df_line_items.rename(columns={
-    "name": "Name",
-    "description": "Description",
-    "allocated_amount": "Allocated Amount"
+        "name": "Name",
+        "description": "Description",
+        "allocated_amount": "Allocated Amount"
     })[["Name", "Description", "Allocated Amount"]]
 
-
     edited_df = st.data_editor(
-    df_editable,
-    use_container_width=True,
-    num_rows="fixed",
-    disabled={"Name": True},
-    hide_index=True,
-    key="line_editor"
+        df_editable,
+        use_container_width=True,
+        num_rows="fixed",
+        disabled={"Name": True},
+        hide_index=True,
+        key="line_editor"
     )
-
-
-    # edited_df = st.data_editor(
-    #     df_editable,
-    #     use_container_width=True,
-    #     num_rows="fixed",
-    #     disabled=["Name"],  # Only Description + Allocated Amount are editable
-    #     key="line_editor"
-    # )
 
     if st.button("💾 Save Changes to Line Items"):
         updates_made = False
         for i, row in edited_df.iterrows():
             original = df_line_items.iloc[i]
             if (
-                row["Description"].strip() != original["description"]
+                (row["Description"] or "").strip() != (original["description"] or "").strip()
                 or float(row["Allocated Amount"]) != original["allocated_amount"]
             ):
+                desc = (row["Description"] or "").strip()
+                desc = desc if desc else None
+
                 update_line_item(
-                    original["id"],
-                    original["name"],  # still useful in case your function needs it
-                    row["Description"].strip(),
+                    int(original["id"]),
+                    original["name"],
+                    desc,
                     float(row["Allocated Amount"])
                 )
-                updates_made = True
+                updates_made = True  # ← correctly inside the loop
 
         if updates_made:
             st.success("✅ Changes saved successfully.")
@@ -141,36 +136,13 @@ with st.expander("📝 Edit Line Items"):
         else:
             st.info("ℹ️ No changes to save.")
 
-
-    # if st.button("💾 Save Changes to Line Items"):
-    #     updates_made = False
-    #     for i, row in edited_df.iterrows():
-    #         original = df_line_items.iloc[i]
-    #         if (
-    #             row["Description"].strip() != original["Description"]
-    #             or float(row["Allocated Amount"]) != original["Allocated Amount"]
-    #         ):
-    #             update_line_item(
-    #                 original["ID"],
-    #                 original["Name"],
-    #                 row["Description"].strip(),
-    #                 float(row["Allocated Amount"])
-    #             )
-    #             updates_made = True
-
-    #     if updates_made:
-    #         st.success("✅ Changes saved successfully.")
-    #         st.rerun()
-    #     else:
-    #         st.info("ℹ️ No changes to save.")
-
-
 # --- Delete Line Item ---
 with st.expander("❌ Delete Line Item"):
     updated_line_items = get_line_items_by_grant(selected_grant_id)
     id_to_name = {item['id']: item['name'] for item in updated_line_items}
 
     if id_to_name:
+        st.caption("Select from the dropdown to delete line item")
         selected_del_id = st.selectbox(
             "Select a line item to delete",
             options=list(id_to_name.keys()),
@@ -182,7 +154,6 @@ with st.expander("❌ Delete Line Item"):
             st.rerun()
     else:
         st.info("No line items available to delete.")
-
 
 # ----------------------------------
 # 3. Map QB Codes to Line Items
@@ -214,40 +185,85 @@ with st.form("map_qb_code_form"):
 # ----------------------------------
 # 4. View/Delete Existing Mappings
 # ----------------------------------
+# ----------------------------------
+# 4. View/Delete Existing Mappings
+# ----------------------------------
 st.header("📎 Existing QB Mappings")
 mappings = get_mappings_for_grant(selected_grant_id)
 
 if not mappings.empty:
-    # Rename and reorder columns
+    # Rename and reorder columns for detailed mapping table
     df_map = mappings.rename(columns={
         "id": "ID",
         "qb_code": "QB Code",
         "qb_name": "QB Name",
         "line_item": "Line Item"
-    })[["ID", "QB Code", "QB Name", "Line Item"]]
+    })
+
+    # ----------------------------------
+    # ✅ Mapping Status Summary Table
+    # ----------------------------------
+    mapped_names = df_map["Line Item"].unique().tolist()
+    status_data = []
+
+    for li in line_items:
+        is_mapped = li["name"] in mapped_names
+        status_data.append({
+            "Line Item": li["name"],
+            "Allocated Amount": f"${li['allocated_amount']:,.2f}",
+            "Mapped": "✅" if is_mapped else "❌"
+        })
+
+    df_status = pd.DataFrame(status_data)
+
+    st.subheader("🧮 Line Item Mapping Status")
+    st.dataframe(
+        df_status,
+        column_order=["Line Item", "Allocated Amount", "Mapped"],
+        use_container_width=True
+    )
+
+    # ----------------------------------
+    # 🔍 Full QB Mapping Table
+    # ----------------------------------
+    st.subheader("🔍 QB Mapping Table")
+    st.dataframe(
+        df_map,
+        column_order=["Line Item", "QB Code", "QB Name"],
+        use_container_width=True
+    )
 
     # Group by line item
     grouped = df_map.groupby("Line Item")
 
-    # Determine which line items are not yet mapped
+    # Determine unmapped
     mapped_items = df_map["Line Item"].unique().tolist()
     total_items = len(line_items)
-    unmapped_items = [li['name'] for li in line_items if li['name'] not in mapped_items]
+    unmapped_items = [li for li in line_items if li['name'] not in mapped_items]
 
-    # Summary Section
+    # Summary
     if total_items == 0:
         st.warning("⚠️ No line items created for this grant.")
     elif len(mapped_items) == total_items:
         st.success(f"✅ All {total_items} line items are mapped.")
     else:
         st.info(f"🔄 {len(mapped_items)} of {total_items} line items mapped. {len(unmapped_items)} remaining.")
-        st.warning("The following line items are not yet mapped:")
-        for name in unmapped_items:
-            st.markdown(f"- {name}")
 
-    # Show grouped mappings and delete buttons
+        st.warning("The following line items are not yet mapped:")
+        for li in unmapped_items:
+            st.markdown(f"""
+            <div style="border: 1px solid #444; border-radius: 6px; padding: 8px; margin-bottom: 6px; background-color: #1e1e1e;">
+                <span style="color:#6ce26c;"><b>{li['name']}</b></span><br>
+                <span style="color: #bbb;">Allocated: ${li['allocated_amount']:,.2f}</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+    # Expanders for delete
     for li_name, group in grouped:
-        with st.expander(f"🧾 {li_name}", expanded=False):
+        matching_item = next((li for li in line_items if li["name"] == li_name), None)
+        allocated_amt = f"${matching_item['allocated_amount']:,.2f}" if matching_item else "N/A"
+
+        with st.expander(f"🧾 {li_name}  |  💰 Allocated: {allocated_amt}", expanded=False):
             for _, row in group.iterrows():
                 st.markdown(f"• `{row['QB Code']}` – {row['QB Name']}")
                 if st.button("🗑️ Remove", key=f"del_map_{row['ID']}"):
@@ -256,6 +272,193 @@ if not mappings.empty:
                     st.rerun()
 else:
     st.info("ℹ️ No QuickBooks codes have been mapped yet.")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ----------------------------------
+# 4. View/Delete Existing Mappings
+# ----------------------------------
+# st.header("📎 Existing QB Mappings")
+# mappings = get_mappings_for_grant(selected_grant_id)
+
+# if not mappings.empty:
+#     # Rename and reorder columns
+#     df_map = mappings.rename(columns={
+#         "id": "ID",
+#         "qb_code": "QB Code",
+#         "qb_name": "QB Name",
+#         "line_item": "Line Item"
+#     })
+
+#     # Visual Table Overview (Hide ID, Reorder)
+#     st.subheader("🔍 QB Mapping Table")
+#     st.dataframe(
+#         df_map,
+#         column_order=["Line Item", "QB Code", "QB Name"],
+#         use_container_width=True
+#     )
+
+#     # Group by line item
+#     grouped = df_map.groupby("Line Item")
+
+#     # Determine unmapped
+#     mapped_items = df_map["Line Item"].unique().tolist()
+#     total_items = len(line_items)
+#     unmapped_items = [li for li in line_items if li['name'] not in mapped_items]
+
+#     # Summary Section
+#     if total_items == 0:
+#         st.warning("⚠️ No line items created for this grant.")
+#     elif len(mapped_items) == total_items:
+#         st.success(f"✅ All {total_items} line items are mapped.")
+#     else:
+#         st.info(f"🔄 {len(mapped_items)} of {total_items} line items mapped. {len(unmapped_items)} remaining.")
+
+#         st.warning("The following line items are not yet mapped:")
+#         for li in unmapped_items:
+#             st.markdown(f"""
+#             <div style="border: 1px solid #444; border-radius: 6px; padding: 8px; margin-bottom: 6px; background-color: #1e1e1e;">
+#                 <span style="color:#6ce26c;"><b>{li['name']}</b></span><br>
+#                 <span style="color: #bbb;">Allocated: ${li['allocated_amount']:,.2f}</span>
+#             </div>
+#             """, unsafe_allow_html=True)
+
+#     # Expanders for delete
+#     for li_name, group in grouped:
+#     # Find the matching line item from the full list
+#         matching_item = next((li for li in line_items if li["name"] == li_name), None)
+#         allocated_amt = f"${matching_item['allocated_amount']:,.2f}" if matching_item else "N/A"
+
+#         with st.expander(f"🧾 {li_name}  |  💰 Allocated: {allocated_amt}", expanded=False):
+#             for _, row in group.iterrows():
+#                 st.markdown(f"• `{row['QB Code']}` – {row['QB Name']}")
+#                 if st.button("🗑️ Remove", key=f"del_map_{row['ID']}"):
+#                     delete_qb_mapping(row["ID"])
+#                     st.success("Mapping removed.")
+#                     st.rerun()
+
+ 
+#     # Expanders for delete
+#     # for li_name, group in grouped:
+#     #     with st.expander(f"🧾 {li_name}", expanded=False):
+#     #         for _, row in group.iterrows():
+#     #             st.markdown(f"• `{row['QB Code']}` – {row['QB Name']}")
+#     #             if st.button("🗑️ Remove", key=f"del_map_{row['ID']}"):
+#     #                 delete_qb_mapping(row["ID"])
+#     #                 st.success("Mapping removed.")
+#     #                 st.rerun()
+
+# else:
+#     st.info("ℹ️ No QuickBooks codes have been mapped yet.")
+
+
+
+
+
+
+
+
+### OLD BUT RELIABLE
+# st.header("📎 Existing QB Mappings")
+# mappings = get_mappings_for_grant(selected_grant_id)
+
+# if not mappings.empty:
+#     # Rename and reorder columns
+#     df_map = mappings.rename(columns={
+#         "id": "ID",
+#         "qb_code": "QB Code",
+#         "qb_name": "QB Name",
+#         "line_item": "Line Item"
+#     })[["ID", "QB Code", "QB Name", "Line Item"]]
+
+#     # Group by line item
+#     grouped = df_map.groupby("Line Item")
+
+#     # Determine which line items are not yet mapped
+#     mapped_items = df_map["Line Item"].unique().tolist()
+#     total_items = len(line_items)
+#     unmapped_items = [li['name'] for li in line_items if li['name'] not in mapped_items]
+
+#     # Summary Section
+#     if total_items == 0:
+#         st.warning("⚠️ No line items created for this grant.")
+#     elif len(mapped_items) == total_items:
+#         st.success(f"✅ All {total_items} line items are mapped.")
+#     else:
+#         st.info(f"🔄 {len(mapped_items)} of {total_items} line items mapped. {len(unmapped_items)} remaining.")
+#         st.warning("The following line items are not yet mapped:")
+#         for name in unmapped_items:
+#             st.markdown(f"- {name}")
+
+#     # Show grouped mappings and delete buttons
+#     for li_name, group in grouped:
+#         with st.expander(f"🧾 {li_name}", expanded=False):
+#             for _, row in group.iterrows():
+#                 st.markdown(f"• `{row['QB Code']}` – {row['QB Name']}")
+#                 if st.button("🗑️ Remove", key=f"del_map_{row['ID']}"):
+#                     delete_qb_mapping(row["ID"])
+#                     st.success("Mapping removed.")
+#                     st.rerun()
+# else:
+#     st.info("ℹ️ No QuickBooks codes have been mapped yet.")
+
+
+
+
+# st.subheader("🔍 Mapping Overview Table")
+# # st.dataframe(df_map.style.format({
+# #     "QB Code": lambda x: f"`{x}`",
+# #     "QB Name": lambda x: f"{x}",
+# #     "Line Item": lambda x: f"{x}"
+# # }))
+
+
+# st.dataframe(
+#     df_map,
+#     column_order=["Line Item", "QB Code", "QB Name"],
+#     column_config={
+#         "QB Code": "QuickBooks Code",
+#         "QB Name": "QuickBooks Category"
+#     },
+#     use_container_width=True
+# )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

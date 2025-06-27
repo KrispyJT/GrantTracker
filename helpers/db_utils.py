@@ -312,13 +312,14 @@ def get_total_allocated_for_grant(grant_id):
 
 
 def add_line_item(grant_id, name, description, allocated_amount=0.0):
+    clean_desc = description.strip() if isinstance(description, str) and description.strip() else None
     return insert_if_not_exists(
         table="grant_line_items",
         fields=["grant_id", "name", "description", "allocated_amount"],
         values={
             "grant_id": grant_id,
             "name": name,
-            "description": description,
+            "description": clean_desc,
             "allocated_amount": allocated_amount
         },
         conflict_fields=["grant_id", "name"],
