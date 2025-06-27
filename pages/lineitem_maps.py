@@ -93,67 +93,115 @@ with st.expander("➕ Add New Line Item"):
                     st.warning(f"{li_name} was not added. It may already exist.")
 
 # --- Edit Line Items ---
-with st.expander("📝 Edit Line Items"):
-    st.caption("You can only edit *Description* and *Allocated Amount*. To rename a line item, please delete and re-add it.")
+if not df_line_items.empty:
+    with st.expander("📝 Edit Line Items"):
+        st.caption("You can only edit *Description* and *Allocated Amount*. To rename a line item, please delete and re-add it.")
 
-    df_editable = df_line_items.rename(columns={
-        "name": "Name",
-        "description": "Description",
-        "allocated_amount": "Allocated Amount"
-    })[["Name", "Description", "Allocated Amount"]]
+        df_editable = df_line_items.rename(columns={
+            "name": "Name",
+            "description": "Description",
+            "allocated_amount": "Allocated Amount"
+        })[["Name", "Description", "Allocated Amount"]]
 
-    edited_df = st.data_editor(
-        df_editable,
-        use_container_width=True,
-        num_rows="fixed",
-        disabled={"Name": True},
-        hide_index=True,
-        key="line_editor"
-    )
-
-    if st.button("💾 Save Changes to Line Items"):
-        updates_made = False
-        for i, row in edited_df.iterrows():
-            original = df_line_items.iloc[i]
-            if (
-                (row["Description"] or "").strip() != (original["description"] or "").strip()
-                or float(row["Allocated Amount"]) != original["allocated_amount"]
-            ):
-                desc = (row["Description"] or "").strip()
-                desc = desc if desc else None
-
-                update_line_item(
-                    int(original["id"]),
-                    original["name"],
-                    desc,
-                    float(row["Allocated Amount"])
-                )
-                updates_made = True  # ← correctly inside the loop
-
-        if updates_made:
-            st.success("✅ Changes saved successfully.")
-            st.rerun()
-        else:
-            st.info("ℹ️ No changes to save.")
-
-# --- Delete Line Item ---
-with st.expander("❌ Delete Line Item"):
-    updated_line_items = get_line_items_by_grant(selected_grant_id)
-    id_to_name = {item['id']: item['name'] for item in updated_line_items}
-
-    if id_to_name:
-        st.caption("Select from the dropdown to delete line item")
-        selected_del_id = st.selectbox(
-            "Select a line item to delete",
-            options=list(id_to_name.keys()),
-            format_func=lambda x: f"{id_to_name[x]}"
+        edited_df = st.data_editor(
+            df_editable,
+            use_container_width=True,
+            num_rows="fixed",
+            disabled={"Name": True},
+            hide_index=True,
+            key="line_editor"
         )
-        if st.button("Delete Selected Line Item"):
-            delete_line_item(selected_del_id)
-            st.warning("🗑️ Line item deleted.")
-            st.rerun()
-    else:
-        st.info("No line items available to delete.")
+
+        if st.button("💾 Save Changes to Line Items"):
+            updates_made = False
+            for i, row in edited_df.iterrows():
+                original = df_line_items.iloc[i]
+                if (
+                    (row["Description"] or "").strip() != (original["description"] or "").strip()
+                    or float(row["Allocated Amount"]) != original["allocated_amount"]
+                ):
+                    desc = (row["Description"] or "").strip() or None
+                    update_line_item(
+                        int(original["id"]),
+                        original["name"],
+                        desc,
+                        float(row["Allocated Amount"])
+                    )
+                    updates_made = True
+
+            if updates_made:
+                st.success("✅ Changes saved successfully.")
+                st.rerun()
+            else:
+                st.info("ℹ️ No changes to save.")
+else:
+    with st.expander("📝 Edit Line Items"):
+        st.info("ℹ️ No line items to edit yet. Add one above.")
+
+
+# Original
+# --- Edit Line Items ---
+# with st.expander("📝 Edit Line Items"):
+#     st.caption("You can only edit *Description* and *Allocated Amount*. To rename a line item, please delete and re-add it.")
+
+#     df_editable = df_line_items.rename(columns={
+#         "name": "Name",
+#         "description": "Description",
+#         "allocated_amount": "Allocated Amount"
+#     })[["Name", "Description", "Allocated Amount"]]
+
+#     edited_df = st.data_editor(
+#         df_editable,
+#         use_container_width=True,
+#         num_rows="fixed",
+#         disabled={"Name": True},
+#         hide_index=True,
+#         key="line_editor"
+#     )
+
+#     if st.button("💾 Save Changes to Line Items"):
+#         updates_made = False
+#         for i, row in edited_df.iterrows():
+#             original = df_line_items.iloc[i]
+#             if (
+#                 (row["Description"] or "").strip() != (original["description"] or "").strip()
+#                 or float(row["Allocated Amount"]) != original["allocated_amount"]
+#             ):
+#                 desc = (row["Description"] or "").strip()
+#                 desc = desc if desc else None
+
+#                 update_line_item(
+#                     int(original["id"]),
+#                     original["name"],
+#                     desc,
+#                     float(row["Allocated Amount"])
+#                 )
+#                 updates_made = True  # ← correctly inside the loop
+
+#         if updates_made:
+#             st.success("✅ Changes saved successfully.")
+#             st.rerun()
+#         else:
+#             st.info("ℹ️ No changes to save.")
+
+# # --- Delete Line Item ---
+# with st.expander("❌ Delete Line Item"):
+#     updated_line_items = get_line_items_by_grant(selected_grant_id)
+#     id_to_name = {item['id']: item['name'] for item in updated_line_items}
+
+#     if id_to_name:
+#         st.caption("Select from the dropdown to delete line item")
+#         selected_del_id = st.selectbox(
+#             "Select a line item to delete",
+#             options=list(id_to_name.keys()),
+#             format_func=lambda x: f"{id_to_name[x]}"
+#         )
+#         if st.button("Delete Selected Line Item"):
+#             delete_line_item(selected_del_id)
+#             st.warning("🗑️ Line item deleted.")
+#             st.rerun()
+#     else:
+#         st.info("No line items available to delete.")
 
 # ----------------------------------
 # 3. Map QB Codes to Line Items
@@ -182,9 +230,7 @@ with st.form("map_qb_code_form"):
             st.warning(f"Mapping already exists between '{code}' and '{li_name}'")
 
 
-# ----------------------------------
-# 4. View/Delete Existing Mappings
-# ----------------------------------
+
 # ----------------------------------
 # 4. View/Delete Existing Mappings
 # ----------------------------------
@@ -222,6 +268,15 @@ if not mappings.empty:
         column_order=["Line Item", "Allocated Amount", "Mapped"],
         use_container_width=True
     )
+#     # Small friendly explanation
+#     st.markdown(
+#         """
+# 💡      **What's Shown Below:**
+#                 - **Line Item Mapping Status**: A quick glance at which line items are already mapped to QuickBooks codes.
+#                 - **QB Mapping Table**: Shows detailed connections between each line item and its assigned QB code.
+#                 - To remove a mapping, scroll down and open the corresponding section below. ✅
+#         """)
+
 
     # ----------------------------------
     # 🔍 Full QB Mapping Table
@@ -288,7 +343,7 @@ else:
 
 
 
-
+ #ORIGNAL 
 # ----------------------------------
 # 4. View/Delete Existing Mappings
 # ----------------------------------
