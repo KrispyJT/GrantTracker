@@ -659,16 +659,19 @@ def get_grant_summary_data(grant_id):
 
     data = []
     for item_id, name, allocated in line_items:
+        allocated = float(allocated)  # 💡 convert here!
         spent = actuals.get(item_id, 0.0)
         percent_spent = round((spent / allocated) * 100, 1) if allocated else 0.0
         remaining = allocated - spent
+
         data.append({
             "Line Item": name,
             "Allocated": allocated,
             "Spent": spent,
             "% Spent": f"{percent_spent}%",
             "Remaining": remaining
-        })
+    })
+
 
     return pd.DataFrame(data)
 
@@ -740,6 +743,20 @@ def delete_anticipated_expenses_for_grant(grant_id):
 # ------------------------
 
 # 41
+# def is_allocation_exceeding_total(grant_id):
+#     query = """
+#         SELECT g.total_award, COALESCE(SUM(li.allocated_amount), 0) AS total_allocated
+#         FROM grants g
+#         LEFT JOIN grant_line_items li ON g.id = li.grant_id
+#         WHERE g.id = :grant_id
+#         GROUP BY g.id
+#     """
+#     result = fetch_one(query, {"grant_id": grant_id})
+#     if result:
+#         total_award, total_allocated = result
+#         return float(total_allocated) > float(total_award), float(total_allocated), float(total_award)
+#     return False, 0.0, 0.0
+
 def is_allocation_exceeding_total(grant_id):
     query = """
         SELECT g.total_award, COALESCE(SUM(li.allocated_amount), 0) AS total_allocated
@@ -750,7 +767,7 @@ def is_allocation_exceeding_total(grant_id):
     """
     result = fetch_one(query, {"grant_id": grant_id})
     if result:
-        total_award, total_allocated = result
-        return total_allocated > total_award, total_allocated, total_award
-    return False, 0, 0
-
+        total_award = result["total_award"]
+        total_allocated = result["total_allocated"]
+        return float(total_allocated) > float(total_award), float(total_allocated), float(total_award)
+    return False, 0.0, 0.0

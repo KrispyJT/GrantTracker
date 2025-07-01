@@ -10,7 +10,7 @@ st.title("📋 Grant Summary Dashboard")
 
 # -- Select a Grant
 grant_options = get_all_grants()
-grant_lookup = {f"{g[1]} ({g[2]})": g[0] for g in grant_options}
+grant_lookup = {f"{g['name']} ({g['funder']})": g['id'] for g in grant_options}
 selected = st.selectbox("Select a Grant", list(grant_lookup.keys()))
 
 if selected:
@@ -19,12 +19,12 @@ if selected:
 
     # -- Overview Box
     with st.expander("🔍 Grant Details", expanded=True):
-        st.write(f"**Funder:** {grant[2]} ({grant[3]})")
-        st.write(f"**Status:** {grant[7]}")
-        st.write(f"**Start – End:** {grant[4]} → {grant[5]}")
-        st.write(f"**Total Award:** ${grant[6]:,.2f}")
-        if grant[8]:
-            st.markdown(f"**Notes:** {grant[8]}")
+        st.write(f"**Funder:** {grant['funder_name']} ({grant['funder_type']})")
+        st.write(f"**Status:** {grant['status']}")
+        st.write(f"**Start – End:** {grant['start_date']} → {grant['end_date']}")
+        st.write(f"**Total Award:** ${grant['total_award']:,.2f}")
+        if grant['notes']:
+            st.markdown(f"**Notes:** {grant['notes']}")
 
     # -- Allocation vs Total Check
     exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
