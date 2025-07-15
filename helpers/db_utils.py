@@ -658,8 +658,10 @@ def get_grant_summary_data(grant_id):
     actuals = dict(get_actual_expense_totals(grant_id))  # line_item_id → total_spent
 
     data = []
-    for item_id, name, allocated in line_items:
-        allocated = float(allocated)  # 💡 convert here!
+    for row in line_items:
+        item_id = row["id"]
+        name = row["name"]
+        allocated = float(row["allocated_amount"]) if row["allocated_amount"] else 0.0
         spent = actuals.get(item_id, 0.0)
         percent_spent = round((spent / allocated) * 100, 1) if allocated else 0.0
         remaining = allocated - spent

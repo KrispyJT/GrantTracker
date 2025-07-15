@@ -42,4 +42,4 @@ if selected:
 
     # -- Optional Chart
     st.markdown("### 📈 Allocation vs Actuals")
-    st.bar_chart(df_summary.set_index("Line Item")[["Allocated", "Spent"]])
+    # st.bar_chart(df_summary.set_index("Line Item")[["Allocated", "Spent"]])
