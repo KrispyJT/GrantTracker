@@ -2,7 +2,7 @@
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-
+import streamlit as st
 
 
 # ---- Date Utils
@@ -57,3 +57,37 @@ def normalize_string(value, title_case=True):
         return value
     value = value.strip()
     return value.title() if title_case else value
+
+
+
+def render_filter_sidebar(df):
+    with st.sidebar:
+        st.subheader("🔦 Filter Line Items")
+
+        # 🎯 Create selectboxes with keys to enable clearing via session_state
+        filter_li = st.selectbox(
+            "Filter by Line Item",
+            ["All"] + sorted(df["Line Item"].unique()),
+            key="line_item_filter"
+        )
+
+        filter_qb_code = st.selectbox(
+            "Filter by QB Code",
+            ["All"] + sorted(map(str, df["QB Code"].unique())),
+            key="qb_code_filter"
+        )
+
+        filter_qb_name = st.selectbox(
+            "Filter by QB Name",
+            ["All"] + sorted(df["QB Name"].unique()),
+            key="qb_name_filter"
+        )
+
+        # 🧹 Clear filters button
+        if st.button("🔄 Clear Filters"):
+            st.session_state.pop("line_item_filter", None)
+            st.session_state.pop("qb_code_filter", None)
+            st.session_state.pop("qb_name_filter", None)
+            st.rerun()
+
+    return filter_li, filter_qb_code, filter_qb_name
