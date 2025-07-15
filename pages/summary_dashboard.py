@@ -30,10 +30,43 @@ if selected:
     exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
     st.markdown("---")
     st.subheader("💰 Allocation Summary")
+
+    # -- Use columns for a clean layout
+    col1, col2, col3 = st.columns([1.5, 1.5, 1])
+
+    with col1:
+        st.markdown("**💵 Allocated**")
+        st.markdown(f"${allocated:,.2f}")
+
+    with col2:
+        st.markdown("**🎯 Total Award**")
+        st.markdown(f"${total:,.2f}")
+
+    with col3:
+        percent = (allocated / total * 100) if total else 0
+        st.markdown("**📊 % Allocated**")
+        st.markdown(f"{percent:.1f}%")
+
+# -- Visual feedback
     if exceeds:
-        st.warning(f"⚠️ Allocated (${allocated:,.2f}) exceeds total award (${total:,.2f})")
+        st.warning("⚠️ Allocated amount exceeds the total award!")
     else:
-        st.success(f"✅ Allocated: ${allocated:,.2f}  of  ${total:,.2f}")
+        st.success("✅ Allocation is within the total award.")
+
+# -- Add progress bar (always shows)
+    if total and total > 0:
+        st.progress(min(allocated / total, 1.0))
+
+
+
+
+    # exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
+    # st.markdown("---")
+    # st.subheader("💰 Allocation Summary")
+    # if exceeds:
+    #     st.warning(f"⚠️ Allocated (${allocated:,.2f}) exceeds total award (${total:,.2f})")
+    # else:
+    #     st.success(f"✅ Allocated: ${allocated:,.2f}  of  ${total:,.2f}")
 
     # -- Summary Table
     st.markdown("### 📊 Line Item Spending Summary")
@@ -42,4 +75,4 @@ if selected:
 
     # -- Optional Chart
     st.markdown("### 📈 Allocation vs Actuals")
-    # st.bar_chart(df_summary.set_index("Line Item")[["Allocated", "Spent"]])
+    st.bar_chart(df_summary.set_index("Line Item")[["Allocated", "Spent"]])
