@@ -731,6 +731,29 @@ def get_grant_summary_data(grant_id, start_month=None, end_month=None):
     return pd.DataFrame(data)
 
 
+
+def get_submitted_months_for_grant(grant_id):
+    """
+    Returns a list of months (YYYY-MM format) and last submitted dates
+    for which actual expenses have been submitted for a given grant.
+
+    Args:
+        grant_id (int): Grant ID.
+
+    Returns:
+        list[dict]: Each dict includes 'month' and 'last_saved' keys.
+    """
+    query = """
+        SELECT month, MAX(date_submitted) AS last_saved
+        FROM actual_expenses
+        WHERE grant_id = :grant_id
+        GROUP BY month
+        ORDER BY month
+    """
+    return fetch_all(query, {"grant_id": grant_id})
+
+
+
 # -----------------------------
 #   Anticipated Expenses Logic
 # ----------------------------

@@ -29,6 +29,21 @@ with col1:
     selected_grant_label = st.selectbox("🌟 Select a Grant", list(grant_options.keys()))
     selected_grant_id = grant_options[selected_grant_label]
 
+# 🆕 Submission History for that grant
+from helpers.db_utils import get_submitted_months_for_grant  # make sure it's imported
+submission_history = get_submitted_months_for_grant(selected_grant_id)
+
+with st.expander("📅 Submission History for This Grant", expanded=False):
+    if not submission_history:
+        st.info("No expenses have been submitted yet.")
+    else:
+        for record in submission_history:
+            raw_month = record["month"]  # 'YYYY-MM'
+            formatted_month = datetime.strptime(raw_month, "%Y-%m").strftime("%b %Y")  # 'Jan 2024'
+            last_saved = record["last_saved"]
+            st.markdown(f"✅ **{formatted_month}** — Last saved: `{last_saved}`")
+
+
 # 2️⃣ Month Selection
 grant_row = next(g for g in grants if g['id'] == selected_grant_id)
 month_range = generate_month_range(grant_row['start_date'], grant_row['end_date'])
@@ -95,8 +110,8 @@ with st.expander("ℹ️ How to Use This Table"):
     st.markdown("""
     - 🔎 Use the sidebar to filter line items by name, QB code, or QB name.
     - ✏️ Edit the **Amount Spent** and **Notes** directly in the table.
-    - 💾 Be sure to click **'Submit Actual Expenses'** before changing months.
-    - 📅 Submissions are saved **per month**. If you switch months without saving, your changes will be lost.
+    - 💾 Be sure to click **'Submit Monthly Expenses'** before changing months.
+    - 📅 Submissions are saved **per month**. If you switch months without saving, changes will be lost.
     """)
 
 st.caption("✅ *Edit only the Amount Spent and Notes columns. All other fields are read-only.*")
