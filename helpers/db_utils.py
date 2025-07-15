@@ -642,6 +642,7 @@ def save_actual_expense(grant_id, month, qb_code, line_item_id, amount, notes, d
             "date_submitted": date_submitted
         })
 
+# ORGINAL
 def get_actual_expense_totals(grant_id):
     query = """
         SELECT line_item_id, SUM(amount) AS total_spent
@@ -650,8 +651,28 @@ def get_actual_expense_totals(grant_id):
         GROUP BY line_item_id
     """
     return fetch_all(query, {"grant_id": grant_id})
+# def get_actual_expense_totals(grant_id, start_month=None, end_month=None):
+#     query = """
+#         SELECT line_item_id, SUM(amount) as total_spent
+#         FROM actual_expenses
+#         WHERE grant_id = :grant_id
+#     """
+
+#     params = {"grant_id": grant_id}
+
+#     if start_month:
+#         query += " AND month >= :start_month"
+#         params["start_month"] = start_month
+#     if end_month:
+#         query += " AND month <= :end_month"
+#         params["end_month"] = end_month
+
+#     query += " GROUP BY line_item_id"
+
+#     return fetch_all(query, params)
 
 
+# ORIGINAL
 def get_grant_summary_data(grant_id):
     # Fetch allocations and actuals (both use SQLAlchemy under the hood now)
     line_items = get_line_item_allocations(grant_id)
@@ -676,6 +697,8 @@ def get_grant_summary_data(grant_id):
 
 
     return pd.DataFrame(data)
+
+
 
 # -----------------------------
 #   Anticipated Expenses Logic

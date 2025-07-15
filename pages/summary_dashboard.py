@@ -1,10 +1,14 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 from helpers.db_utils import (
     get_all_grants, get_grant_by_id, get_grant_summary_data, is_allocation_exceeding_total
 )
 
 st.set_page_config(page_title="📋 Grant Summary", layout="wide")
+
+
 
 st.title("📋 Grant Summary Dashboard")
 
@@ -57,17 +61,7 @@ if selected:
     if total and total > 0:
         st.progress(min(allocated / total, 1.0))
 
-
-
-
-    # exceeds, allocated, total = is_allocation_exceeding_total(grant_id)
-    # st.markdown("---")
-    # st.subheader("💰 Allocation Summary")
-    # if exceeds:
-    #     st.warning(f"⚠️ Allocated (${allocated:,.2f}) exceeds total award (${total:,.2f})")
-    # else:
-    #     st.success(f"✅ Allocated: ${allocated:,.2f}  of  ${total:,.2f}")
-
+   
     # -- Summary Table
     st.markdown("### 📊 Line Item Spending Summary")
     df_summary = get_grant_summary_data(grant_id)
