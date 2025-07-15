@@ -643,49 +643,82 @@ def save_actual_expense(grant_id, month, qb_code, line_item_id, amount, notes, d
         })
 
 # ORGINAL
-def get_actual_expense_totals(grant_id):
+# def get_actual_expense_totals(grant_id):
+#     query = """
+#         SELECT line_item_id, SUM(amount) AS total_spent
+#         FROM actual_expenses
+#         WHERE grant_id = :grant_id
+#         GROUP BY line_item_id
+#     """
+#     return fetch_all(query, {"grant_id": grant_id})
+
+def get_actual_expense_totals(grant_id, start_month=None, end_month=None):
     query = """
         SELECT line_item_id, SUM(amount) AS total_spent
         FROM actual_expenses
         WHERE grant_id = :grant_id
-        GROUP BY line_item_id
     """
-    return fetch_all(query, {"grant_id": grant_id})
-# def get_actual_expense_totals(grant_id, start_month=None, end_month=None):
-#     query = """
-#         SELECT line_item_id, SUM(amount) as total_spent
-#         FROM actual_expenses
-#         WHERE grant_id = :grant_id
-#     """
+    params = {"grant_id": grant_id}
 
-#     params = {"grant_id": grant_id}
+    if start_month:
+        query += " AND month >= :start_month"
+        params["start_month"] = start_month
+    if end_month:
+        query += " AND month <= :end_month"
+        params["end_month"] = end_month
 
-#     if start_month:
-#         query += " AND month >= :start_month"
-#         params["start_month"] = start_month
-#     if end_month:
-#         query += " AND month <= :end_month"
-#         params["end_month"] = end_month
+    query += " GROUP BY line_item_id"
+    rows = fetch_all(query, params)
+    # print("RAW rows from DB:", rows)
 
-#     query += " GROUP BY line_item_id"
 
-#     return fetch_all(query, params)
+    return {row["line_item_id"]: row["total_spent"] for row in rows}
 
 
 # ORIGINAL
-def get_grant_summary_data(grant_id):
-    # Fetch allocations and actuals (both use SQLAlchemy under the hood now)
+# def get_grant_summary_data(grant_id):
+#     # Fetch allocations and actuals (both use SQLAlchemy under the hood now)
+#     line_items = get_line_item_allocations(grant_id)
+#     actuals = dict(get_actual_expense_totals(grant_id))  # line_item_id → total_spent
+
+#     data = []
+#     for row in line_items:
+#         item_id = row["id"]
+#         name = row["name"]
+#         allocated = float(row["allocated_amount"]) if row["allocated_amount"] else 0.0
+#         spent = actuals.get(item_id, 0.0)
+#         percent_spent = round((spent / allocated) * 100, 1) if allocated else 0.0
+#         remaining = allocated - spent
+
+#         data.append({
+#             "Line Item": name,
+#             "Allocated": allocated,
+#             "Spent": spent,
+#             "% Spent": f"{percent_spent}%",
+#             "Remaining": remaining
+#     })
+
+
+#     return pd.DataFrame(data)
+
+def get_grant_summary_data(grant_id, start_month=None, end_month=None):
     line_items = get_line_item_allocations(grant_id)
-    actuals = dict(get_actual_expense_totals(grant_id))  # line_item_id → total_spent
+    actuals = dict(get_actual_expense_totals(grant_id, start_month, end_month))
 
     data = []
+    # print("Actual totals pulled:", actuals)
+    # print("Line item IDs found in allocation list:", [row["id"] for row in line_items])
+
     for row in line_items:
         item_id = row["id"]
         name = row["name"]
         allocated = float(row["allocated_amount"]) if row["allocated_amount"] else 0.0
-        spent = actuals.get(item_id, 0.0)
+        spent = actuals.get(int(item_id), 0.0)
         percent_spent = round((spent / allocated) * 100, 1) if allocated else 0.0
         remaining = allocated - spent
+
+        # print(f"[DEBUG] {name} (ID {item_id}) — Allocated: {allocated}, Spent: {spent}")
+
 
         data.append({
             "Line Item": name,
@@ -693,11 +726,9 @@ def get_grant_summary_data(grant_id):
             "Spent": spent,
             "% Spent": f"{percent_spent}%",
             "Remaining": remaining
-    })
-
+        })
 
     return pd.DataFrame(data)
-
 
 
 # -----------------------------
