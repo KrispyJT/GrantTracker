@@ -721,6 +721,7 @@ def get_grant_summary_data(grant_id, start_month=None, end_month=None):
 
 
         data.append({
+            "Line Item ID": item_id,
             "Line Item": name,
             "Allocated": allocated,
             "Spent": spent,
@@ -729,6 +730,31 @@ def get_grant_summary_data(grant_id, start_month=None, end_month=None):
         })
 
     return pd.DataFrame(data)
+
+
+def get_actual_expenses_by_line_item(grant_id, line_item_id):
+    """
+    Fetches all actual expenses for a given line item within a grant,
+    broken down by month.
+
+    Args:
+        grant_id (int): Grant ID
+        line_item_id (int): Line item ID
+
+    Returns:
+        list of dicts with keys: month, qb_code, amount, notes, date_submitted
+    """
+    query = """
+        SELECT month, qb_code, amount, notes, date_submitted
+        FROM actual_expenses
+        WHERE grant_id = :grant_id AND line_item_id = :line_item_id
+        ORDER BY month
+    """
+    return fetch_all(query, {
+        "grant_id": grant_id,
+        "line_item_id": line_item_id
+    })
+
 
 
 
