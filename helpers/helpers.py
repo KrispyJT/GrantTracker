@@ -4,7 +4,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import streamlit as st
 import hashlib
-
+import bcrypt
 
 # ---- Date Utils
 
@@ -95,8 +95,8 @@ def render_filter_sidebar(df):
 
 
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+# def hash_password(password):
+#     return hashlib.sha256(password.encode()).hexdigest()
 
 def login():
     st.subheader("🔐 Login")
@@ -105,13 +105,19 @@ def login():
     password = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        hashed_pw_input = hash_password(password)
-        stored_pw = st.secrets["auth"].get(username)
+        stored_hash = st.secrets["auth"].get(username)
 
-        if stored_pw and stored_pw == hashed_pw_input:
-            st.session_state["authenticated"] = True
-            st.session_state["user"] = username
-            st.rerun()
+        if stored_hash:
+            stored_hash_bytes = stored_hash.encode('utf-8')
+            password_bytes = password.encode('utf-8')
+
+            if bcrypt.checkpw(password_bytes, stored_hash_bytes):
+
+                st.session_state["authenticated"] = True
+                st.session_state["user"] = username
+                st.rerun()
+            else:
+                st.error("❌ Invalid credentials")
         else:
             st.error("❌ Invalid credentials")
 

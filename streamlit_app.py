@@ -3,7 +3,6 @@ import streamlit as st
 import pandas as pd
 from helpers.db_utils import get_all_grants
 from helpers.helpers import login, logout_button
-import hashlib
 
 st.set_page_config(page_title="Grant Tracker Home", page_icon="🏠")
 st.title("🏠 Welcome to the Grant Tracker")
