@@ -39,6 +39,12 @@ start_month, end_month = label_to_month[start_label], label_to_month[end_label]
 
 # 3. Summary Data + Allocation Checks
 df_summary = get_grant_summary_data(granted_id, start_month, end_month)
+
+# Defensive check - logic for fallback
+if df_summary.empty or "Spent" not in df_summary.columns:
+    st.warning("⚠️ No line items or expenses found for this grant.")
+    st.stop()
+
 total_spent = df_summary["Spent"].sum()
 exceeds, allocated, total_award = is_allocation_exceeding_total(granted_id)
 
