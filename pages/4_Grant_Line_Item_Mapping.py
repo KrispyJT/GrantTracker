@@ -16,7 +16,7 @@ if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
-st.set_page_config(page_title="Line Item Mapping", page_icon="🧩")
+st.set_page_config(page_title="Grant Line Item Mapping", page_icon="🧩")
 st.title("🧩 Map QB Codes to Line Items")
 
 

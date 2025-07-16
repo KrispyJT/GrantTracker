@@ -14,7 +14,7 @@ if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
-st.set_page_config(page_title="📋 Grant Summary", layout="wide")
+st.set_page_config(page_title="📋 Grant Summary Dashboard", layout="wide")
 st.title("📋 Grant Summary Dashboard")
 
 # 1. Select Grant
