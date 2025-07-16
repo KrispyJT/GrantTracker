@@ -47,7 +47,6 @@ if df_summary.empty or "Spent" not in df_summary.columns:
 
 total_spent = df_summary["Spent"].sum()
 exceeds, allocated, total_award = is_allocation_exceeding_total(granted_id)
-
 remaining_allocation = total_award - allocated
 remaining_spending = total_award - total_spent
 
