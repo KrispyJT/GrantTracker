@@ -10,6 +10,10 @@ from helpers.db_utils import (
     is_allocation_exceeding_total, get_actual_expenses_by_line_item
 )
 
+if not st.session_state.get("authenticated"):
+    st.warning("🔒 Please log in to access this page.")
+    st.stop()
+
 st.set_page_config(page_title="📋 Grant Summary", layout="wide")
 st.title("📋 Grant Summary Dashboard")
 

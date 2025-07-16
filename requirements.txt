@@ -42,3 +42,4 @@ urllib3==2.4.0
 watchdog==6.0.0
 plotly==6.2.0
 streamlit-authenticator==0.4.2
+streamlit-authenticator==0.4.2

@@ -16,6 +16,12 @@ from helpers.db_utils import (
     get_filtered_qb_codes,
 )
 
+
+if not st.session_state.get("authenticated"):
+    st.warning("🔒 Please log in to access this page.")
+    st.stop()
+
+    
 st.set_page_config(page_title="QuickBook Codes", page_icon="💼")
 st.title("💼 Quickbook Mapping Tool")
 st.write("The user can create a Quickbook code and edit existing codes.")

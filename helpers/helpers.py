@@ -3,6 +3,7 @@
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import streamlit as st
+import hashlib
 
 
 # ---- Date Utils
@@ -91,3 +92,34 @@ def render_filter_sidebar(df):
             st.rerun()
 
     return filter_li, filter_qb_code, filter_qb_name
+
+
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def login():
+    st.subheader("🔐 Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        hashed_pw_input = hash_password(password)
+        stored_pw = st.secrets["auth"].get(username)
+
+        if stored_pw and stored_pw == hashed_pw_input:
+            st.session_state["authenticated"] = True
+            st.session_state["user"] = username
+            st.rerun()
+        else:
+            st.error("❌ Invalid credentials")
+
+def logout_button():
+    with st.sidebar:
+        st.markdown("##")
+        st.markdown(f"👤 `{st.session_state.get('user', 'Unknown')}`")
+        if st.button("🚪 Log Out"):
+            st.session_state["authenticated"] = False
+            st.session_state["user"] = None
+            st.rerun()

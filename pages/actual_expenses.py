@@ -13,6 +13,12 @@ from helpers.db_utils import (
 )
 from helpers.helpers import generate_month_range, render_filter_sidebar
 
+# Login Check
+if not st.session_state.get("authenticated"):
+    st.warning("🔒 Please log in to access this page.")
+    st.stop()
+
+
 st.set_page_config(page_title="💵 Actual Expenses", layout="wide")
 st.title("Enter Monthly Actual Expenses")
 

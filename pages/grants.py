@@ -8,6 +8,10 @@ from helpers.grant_controller import (
     handle_delete_grant,
 )
 
+if not st.session_state.get("authenticated"):
+    st.warning("🔒 Please log in to access this page.")
+    st.stop()
+
 st.set_page_config(page_title="Grant Management", page_icon="📑")
 st.title("📑 Grant Management")
 
