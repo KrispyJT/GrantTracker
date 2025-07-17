@@ -1,6 +1,8 @@
 # pages/grants.py
 import streamlit as st
 from datetime import date
+from helpers.ui_utils import inject_sidebar_css
+from helpers.helpers import render_sidebar_navigation
 from helpers.db_utils import get_all_grants
 from helpers.grant_controller import (
     handle_add_grant,
@@ -8,13 +10,17 @@ from helpers.grant_controller import (
     handle_delete_grant,
 )
 
+
+st.set_page_config(page_title="Grant Management", page_icon="📑")
+
 if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
-st.set_page_config(page_title="Grant Management", page_icon="📑")
-st.title("📑 Grant Management")
+render_sidebar_navigation()
+inject_sidebar_css()
 
+st.title("📑 Grant Management")
 st.markdown("Manage grants and related information below. Add new grants, edit existing ones, or delete obsolete entries.")
 
 # Fetch all grants and build dropdown dictionary

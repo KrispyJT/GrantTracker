@@ -11,15 +11,19 @@ from helpers.db_utils import (
     add_qb_mapping,
     delete_qb_mapping,
 )
+from helpers.helpers import render_sidebar_navigation
+from helpers.ui_utils import inject_sidebar_css
+
+st.set_page_config(page_title="Grant Line Item Mapping", page_icon="🧩")
 
 if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
-st.set_page_config(page_title="Grant Line Item Mapping", page_icon="🧩")
+inject_sidebar_css()
+render_sidebar_navigation()
+
 st.title("🧩 Map QB Codes to Line Items")
-
-
 st.markdown("""
 ### Line Item Mapping Overview
 

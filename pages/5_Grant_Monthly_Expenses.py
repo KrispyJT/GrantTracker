@@ -11,17 +11,21 @@ from helpers.db_utils import (
     get_actual_expenses_for_grant,
     save_actual_expense,
 )
-from helpers.helpers import generate_month_range, render_filter_sidebar
+from helpers.helpers import generate_month_range, render_filter_sidebar, render_sidebar_navigation
+from helpers.ui_utils import inject_sidebar_css
 
-# Login Check
+st.set_page_config(page_title="💵 Actual Expenses", layout="wide")
+
+# Auth Check
 if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
+inject_sidebar_css()
+render_sidebar_navigation()
 
-st.set_page_config(page_title="💵 Actual Expenses", layout="wide")
+
 st.title("Enter Monthly Actual Expenses")
-
 # 1️⃣ Grant Selection
 grants = get_all_grants()
 if not grants:

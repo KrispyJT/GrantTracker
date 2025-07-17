@@ -15,14 +15,19 @@ from helpers.db_utils import (
     delete_qb_code,
     get_filtered_qb_codes,
 )
+from helpers.ui_utils import inject_sidebar_css
+from helpers.helpers import render_sidebar_navigation
 
+st.set_page_config(page_title="QuickBook Codes", page_icon="💼")
 
 if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
-    
-st.set_page_config(page_title="QuickBook Codes", page_icon="💼")
+inject_sidebar_css()
+render_sidebar_navigation()    
+
+
 st.title("💼 Quickbook Mapping Tool")
 st.write("The user can create a Quickbook code and edit existing codes.")
 

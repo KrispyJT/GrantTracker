@@ -4,17 +4,22 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
-from helpers.helpers import generate_month_range
+from helpers.helpers import generate_month_range, render_sidebar_navigation
+from helpers.ui_utils import inject_sidebar_css
 from helpers.db_utils import (
     get_all_grants, get_grant_by_id, get_grant_summary_data,
     is_allocation_exceeding_total, get_actual_expenses_by_line_item
 )
 
+st.set_page_config(page_title="📋 Grant Summary Dashboard", layout="wide")
+
 if not st.session_state.get("authenticated"):
     st.warning("🔒 Please log in to access this page.")
     st.stop()
 
-st.set_page_config(page_title="📋 Grant Summary Dashboard", layout="wide")
+inject_sidebar_css()
+render_sidebar_navigation()
+
 st.title("📋 Grant Summary Dashboard")
 
 # 1. Select Grant

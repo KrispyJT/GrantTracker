@@ -1,5 +1,5 @@
 # helpers/helpers.py
-
+import pandas as pd
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import streamlit as st
@@ -32,6 +32,8 @@ def validate_date_range(start_date, end_date):
     if end_date < start_date:
         raise ValueError("End date must be after start date.")
 
+
+
 # Financial Utilities
 
 def distribute_amount_evenly(allocated_amount: float, months: list[str]) -> dict[str, float]:
@@ -60,7 +62,7 @@ def normalize_string(value, title_case=True):
     return value.title() if title_case else value
 
 
-
+# Sidebar Utility
 def render_filter_sidebar(df):
     with st.sidebar:
         st.subheader("🔦 Filter Line Items")
@@ -94,7 +96,7 @@ def render_filter_sidebar(df):
     return filter_li, filter_qb_code, filter_qb_name
 
 
-
+# Login utility
 # def hash_password(password):
 #     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -121,11 +123,36 @@ def login():
         else:
             st.error("❌ Invalid credentials")
 
-def logout_button():
-    with st.sidebar:
-        st.markdown("##")
-        st.markdown(f"👤 `{st.session_state.get('user', 'Unknown')}`")
-        if st.button("🚪 Log Out"):
-            st.session_state["authenticated"] = False
-            st.session_state["user"] = None
-            st.rerun()
+# def logout_button():
+#     with st.sidebar:
+#         st.markdown("##")
+#         st.markdown(f"👤 `{st.session_state.get('user', 'Unknown')}`")
+#         if st.button("🚪 Log Out"):
+#             st.session_state["authenticated"] = False
+#             st.session_state["user"] = None
+#             st.rerun()
+
+
+# helpers/helpers.py
+
+def render_sidebar_navigation():
+    if "authenticated" in st.session_state and st.session_state["authenticated"]:
+        with st.sidebar:
+            st.markdown("## 🔀 Navigation")
+            st.page_link("streamlit_app.py", label="🏠 Home")
+            st.page_link("pages/1_Grants.py", label="📑 Manage Grants")
+            st.page_link("pages/3_QuickBook_Codes.py", label="💼 QB Codes")
+            st.page_link("pages/4_Grant_Line_Item_Mapping.py", label="🧩 Line Item Mapping")
+            st.page_link("pages/5_Grant_Monthly_Expenses.py", label="💵 Monthly Expenses")
+            st.page_link("pages/7_Grant_Summary_Dashboard.py", label="📈 Summary Dashboard")
+
+            # 🔒 Disabled for now
+            st.page_link("pages/_2_Funders.py", label="2️⃣ Funders", disabled=True)
+            st.page_link("pages/_6_Grant_Monthly_Planning.py", label="6️⃣ Monthly Planning", disabled=True)
+
+            st.markdown("---")
+            st.markdown(f"👤 `{st.session_state.get('user', 'Unknown')}`")
+            if st.button("🚪 Log Out"):
+                st.session_state["authenticated"] = False
+                st.session_state["user"] = None
+                st.rerun()
